@@ -1,71 +1,75 @@
 # espilon-monitor
 
-**Multi-device embedded serial crash monitor for security research and fuzzing campaigns.**
+**Universal serial monitor for embedded devices.**
+
+Monitor any number of serial devices simultaneously — production bots, development boards, fuzzing targets, test rigs — from a single terminal.
 
 ---
 
 ## The Problem
 
-When you're running a fuzzing campaign against embedded devices — 5 boards, 72 hours, thousands of test cases — you need answers fast:
+You have boards. They output things on serial. You need to know what's happening.
 
-- Which board crashed?
-- What triggered it?
-- Is it a new crash or the same one again?
-- Can I reproduce it?
+With one board and one terminal, `screen` works fine. With five boards running 24/7, it breaks down — missed events, no logging, no alerting, no context when something goes wrong.
 
-Existing tools (`minicom`, `screen`, `picocom`) are single-port, dumb terminals. They don't classify crashes, don't deduplicate, don't reset boards, and don't integrate with fuzz tooling. You end up with 5 terminal windows, a notepad, and a lot of missed crashes.
-
-`espilon-monitor` fills that gap.
+`espilon-monitor` gives you a unified view of all your devices, with the intelligence to tell you what matters.
 
 ---
 
 ## What it does
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  espilon-monitor                                        │
-│                                                         │
-│  [C6-TEE  ] Guru Meditation Error ← CRITICAL           │
-│  [ESP32-A ] Backtrace: 0x40...    ← HIGH                │
-│  [STM32-B ] HardFault_Handler     ← CRITICAL           │
-│  [Arduino ] assert failed         ← HIGH                │
-│                                                         │
-│  Crashes: 3 unique  |  Uptime: 04:23:11  |  Resets: 2  │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  espilon-monitor — 4 devices online                        │
+│                                                             │
+│  [bot-alpha  ] Task completed: scan_192.168.1.0/24         │
+│  [bot-beta   ] Waiting for command...                       │
+│  [dev-board  ] !! Guru Meditation Error  ← CRITICAL        │
+│  [target-ble ] Connecting to aa:bb:cc...                    │
+│                                                             │
+│  Uptime: 12:04:33  |  Events: 1,847  |  Alerts: 1         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-- **Monitors N serial ports simultaneously** — ESP32, STM32, Arduino, RP2040, anything with UART
-- **Classifies crashes in real time** — Guru Meditation, HardFault, stack overflow, ASAN errors, watchdog resets, and more
-- **Deduplicates** — one alert per unique crash signature, not one per line
-- **Records session context** — saves N lines before and after each crash for reproduction
-- **Auto-resets boards** — triggers hardware reset via RTS/DTR pin after crash, keeps fuzzing
-- **Replays crash inputs** — feeds AFL++ / libFuzzer crash files back to the target
-- **Extensible via Python plugins** — add custom patterns, webhooks, integrations in a few lines
+- **N ports, one view** — read from any number of serial devices at the same time
+- **Pattern detection** — define what "interesting" looks like per device or globally
+- **Severity levels** — CRITICAL, HIGH, WARN, INFO — filter the noise
+- **Full logging** — every byte, timestamped, per device
+- **Event context** — when something triggers an alert, capture what happened around it
+- **Auto-reset** — send a reset signal (RTS/DTR) to a device on a specific event
+- **Input injection** — send commands or payloads to any device from the monitor
+- **Extensible** — add custom behavior via Python plugins (webhooks, triggers, parsers)
 
 ---
 
 ## Use cases
 
-- **Fuzzing campaigns** — monitor targets 24/7, collect and classify every crash without manual intervention
-- **Security research** — spot privilege escalation signals (e.g. `Origin: M-mode` on RISC-V TEE targets), memory corruption, unexpected resets
-- **Regression testing** — run a test suite, detect any new crashes against known-good baselines
-- **Red team tooling** — monitor victim devices during exploitation, catch crash-based side-channels
-- **Development** — replace your 5 terminal windows with a single, intelligent view
+**Operations / bots**
+Monitor a fleet of ESP32 bots running autonomous tasks. Get alerted when one goes silent, crashes, or outputs an unexpected state. Log everything for post-mortem analysis.
+
+**Development**
+Replace your 5 terminal windows with a single view. See all your boards at once during a test session. Spot regressions instantly.
+
+**Security research**
+Run fuzzing campaigns against embedded targets. Classify crashes in real time, deduplicate, auto-reset and continue. Detect privilege escalation signals (stack dumps, fault handlers, unexpected resets).
+
+**Test automation**
+Feed inputs to devices, watch for expected outputs, flag anything outside spec. Works with AFL++, libFuzzer, or your own test harness.
 
 ---
 
 ## Supported devices
 
-Any device with a UART serial output. Built-in pattern libraries for:
+Anything with a UART serial output. Built-in event patterns for:
 
 | Family | Examples |
 |--------|---------|
-| ESP-IDF (ESP32) | ESP32, ESP32-C6, ESP32-S3, ESP32-H2 |
-| STM32 (CubeIDE) | Any STM32 with HardFault handler output |
-| Arduino | Crash/assert output, watchdog resets |
-| Zephyr RTOS | Kernel panic, assertion failures |
+| ESP-IDF | ESP32, ESP32-C6, ESP32-S3, ESP32-H2 |
+| STM32 | Any STM32 with standard fault output |
+| Arduino | AVR, ARM, ESP8266 |
+| Zephyr RTOS | Kernel panics, assertions |
 | FreeRTOS | Stack overflow, heap corruption |
-| Bare metal | Configurable — bring your own patterns |
+| Custom | Define your own patterns |
 
 ---
 
@@ -74,38 +78,43 @@ Any device with a UART serial output. Built-in pattern libraries for:
 ```
 espilon-monitor/
 ├── src/
-│   ├── serial.c/.h      # Multi-port serial I/O (libserialport)
-│   ├── detector.c/.h    # Pattern matching engine (POSIX regex)
-│   ├── monitor.c/.h     # Main monitoring loop (pthreads)
-│   ├── recorder.c/.h    # Session recording + crash context
+│   ├── serial.c/.h      # Multi-port I/O (libserialport)
+│   ├── detector.c/.h    # Pattern matching (POSIX regex)
+│   ├── monitor.c/.h     # Main loop (pthreads, one thread per port)
+│   ├── recorder.c/.h    # Logging + event context capture
 │   ├── reset.c/.h       # Hardware reset via RTS/DTR
-│   ├── display.c/.h     # Terminal output (color, layout)
+│   ├── display.c/.h     # Terminal output
 │   └── config.c/.h      # Config file parsing
 │
-├── patterns/            # Pattern definitions per device family
+├── patterns/            # Event patterns per device family
 │   ├── esp32.pat
 │   ├── stm32.pat
 │   ├── arduino.pat
 │   └── freertos.pat
 │
-└── plugins/             # Python — custom rules, webhooks, integrations
+└── plugins/             # Python — custom handlers, integrations
     ├── webhooks.py
     └── replay.py
 ```
 
-**C core** — reliability matters on long fuzzing runs. No GC pauses, no interpreter overhead, direct `libserialport` calls, `pthreads` per port.
+**C core** — one thread per port, minimal overhead, runs forever without surprises.
 
-**Python plugins** — researchers know Python. Adding a Discord webhook or a custom crash pattern should take 5 lines, not a recompile.
-
-**Pattern files** — plain text, one rule per line, editable without touching code:
+**Pattern files** — plain text rules, no recompile needed:
 ```
 # patterns/esp32.pat
 CRITICAL  Guru Meditation Error
-CRITICAL  Origin: M-mode
-CRITICAL  Core \d+ panic'ed
-HIGH      abort\(\) was called at PC
-HIGH      stack overflow detected
-WARN      W \([0-9]+\)
+CRITICAL  abort\(\) was called
+HIGH      stack overflow
+WARN      rst:0x
+INFO      I \([0-9]+\)
+```
+
+**Python plugins** — bolt on behavior without touching the core:
+```python
+# plugins/webhooks.py
+def on_event(device, severity, line):
+    if severity == "CRITICAL":
+        post_to_discord(device, line)
 ```
 
 ---
@@ -117,32 +126,35 @@ WARN      W \([0-9]+\)
 make
 
 # Monitor 3 devices
-./espilon-monitor --ports ttyACM0 ttyUSB0 ttyUSB1
+./espilon-monitor ttyACM0 ttyUSB0 ttyUSB1
 
-# With custom patterns and auto-reset on CRITICAL
-./espilon-monitor --ports ttyACM0 --patterns patterns/esp32.pat --auto-reset
+# With patterns and logging
+./espilon-monitor ttyACM0 --patterns esp32 --logdir ./logs
 
-# Replay AFL++ crash files to a target
-./espilon-monitor --ports ttyUSB0 --replay /path/to/findings/crashes/
+# Auto-reset a device on CRITICAL event
+./espilon-monitor ttyACM0 --auto-reset CRITICAL
+
+# Send a command to a specific device
+./espilon-monitor ttyUSB0 --send "start_scan"
 ```
 
 ---
 
 ## Dependencies
 
-| Dependency | Purpose | Required |
-|-----------|---------|---------|
+| | Purpose | Required |
+|--|---------|---------|
 | `libserialport` | Cross-platform serial I/O | Yes |
 | `pthreads` | Per-port threads | Built-in |
-| `regex.h` | POSIX pattern matching | Built-in |
-| `ncurses` | TUI dashboard | Optional |
-| Python 3.8+ | Plugin system | Optional |
+| `regex.h` | Pattern matching | Built-in |
+| `ncurses` | TUI (optional) | No |
+| Python 3.8+ | Plugin system | No |
 
 ---
 
 ## Status
 
-Work in progress. Core serial engine and crash detector are the first milestones.
+In development. Core serial engine first.
 
 ---
 
