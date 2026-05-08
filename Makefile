@@ -22,7 +22,7 @@ SRCS    = src/main.c \
           src/config.c
 OBJS    = $(SRCS:.c=.o)
 
-.PHONY: all clean install check
+.PHONY: all clean install check test
 
 all: $(BIN)
 
@@ -32,8 +32,17 @@ $(BIN): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+TEST_SRCS = tests/test_detector.c src/detector.c
+TEST_BIN  = tests/test_detector
+
+test: $(TEST_BIN)
+	./$(TEST_BIN)
+
+$(TEST_BIN): $(TEST_SRCS)
+	$(CC) $(CFLAGS) $(TEST_SRCS) -o $@ -lpthread
+
 clean:
-	rm -f $(OBJS) $(BIN)
+	rm -f $(OBJS) $(BIN) $(TEST_BIN)
 
 install: $(BIN)
 	install -m 755 $(BIN) /usr/local/bin/
