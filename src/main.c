@@ -3,103 +3,101 @@
 #include <string.h>
 #include <signal.h>
 
+#include "config.h"
+#include "monitor.h"
 #include "serial.h"
 
-static volatile int running = 1;
+#define VERSION "0.1.0"
 
-static void on_signal(int sig) { (void)sig; running = 0; }
+static monitor_t g_monitor;
 
-static void usage(const char *prog) {
+static void on_signal(int sig)
+{
+    (void)sig;
+    monitor_stop(&g_monitor);
+}
+
+static void usage(const char *prog)
+{
     fprintf(stderr,
         "Usage: %s [options] <port> [port2 ...]\n"
-        "\nOptions:\n"
-        "  --baud <N>    Baud rate (default: 115200)\n"
-        "  --list        List available serial ports\n"
-        "  --version     Show version\n"
-        "\nExamples:\n"
+        "\n"
+        "Options:\n"
+        "  --baud <N>            Baud rate (default: 115200)\n"
+        "  --family <name>       Built-in pattern family: esp32 stm32 arduino freertos zephyr\n"
+        "  --patterns <file>     Load extra .pat pattern file\n"
+        "  --logdir <dir>        Log directory (default: logs/)\n"
+        "  --name <port>=<name>  Friendly name for a port\n"
+        "  --auto-reset          Reset device on CRITICAL event\n"
+        "  -v, --verbose         Print all lines, not just events\n"
+        "  --no-color            Disable ANSI colors\n"
+        "  --no-timestamps       Disable timestamps\n"
+        "  --config <file>       Load config file\n"
+        "  --list                List available serial ports\n"
+        "  --version             Show version\n"
+        "\n"
+        "Examples:\n"
         "  %s ttyACM0 ttyUSB0 ttyUSB1\n"
-        "  %s --baud 9600 ttyACM0\n",
-        prog, prog, prog);
+        "  %s --family esp32 --auto-reset ttyACM0\n"
+        "  %s --baud 9600 --name ttyUSB0=STM32 ttyUSB0\n",
+        prog, prog, prog, prog);
 }
 
 int main(int argc, char *argv[])
 {
-    signal(SIGINT, on_signal);
-    signal(SIGTERM, on_signal);
-
     if (argc < 2) { usage(argv[0]); return 1; }
 
-    if (strcmp(argv[1], "--list") == 0) {
-        char ports[SERIAL_MAX_PORTS][64];
-        int n = serial_list(ports, SERIAL_MAX_PORTS);
-        printf("Available serial ports (%d):\n", n);
-        for (int i = 0; i < n; i++) printf("  %s\n", ports[i]);
-        return 0;
-    }
-
-    if (strcmp(argv[1], "--version") == 0) {
-        printf("espilon-monitor 0.1.0\n"); return 0;
-    }
-
-    int baud = 115200;
-    serial_port_t ports[SERIAL_MAX_PORTS];
-    int nports = 0;
-
-    for (int i = 1; i < argc && nports < SERIAL_MAX_PORTS; i++) {
-        if (strcmp(argv[i], "--baud") == 0 && i + 1 < argc) {
-            baud = atoi(argv[++i]); continue;
+    /* Quick flags before full parse */
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--version") == 0) {
+            printf("espilon-monitor %s\n", VERSION);
+            return 0;
         }
-        if (argv[i][0] == '-') continue;
-
-        serial_port_t *p = &ports[nports++];
-        memset(p, 0, sizeof(*p));
-        if (strncmp(argv[i], "/dev/", 5) == 0)
-            strncpy(p->path, argv[i], sizeof(p->path) - 1);
-        else
-            snprintf(p->path, sizeof(p->path), "/dev/%s", argv[i]);
-        snprintf(p->name, sizeof(p->name), "%s", strrchr(p->path, '/') + 1);
-        p->baud           = baud;
-        p->auto_reconnect = true;
-    }
-
-    if (nports == 0) {
-        fprintf(stderr, "Error: no ports specified\n");
-        usage(argv[0]); return 1;
-    }
-
-    printf("espilon-monitor — opening %d port(s)\n\n", nports);
-    for (int i = 0; i < nports; i++) {
-        if (serial_open(&ports[i]) == 0)
-            printf("  [%s] opened @ %d baud\n", ports[i].name, ports[i].baud);
-        else
-            fprintf(stderr, "  [%s] failed to open\n", ports[i].name);
-    }
-    printf("\n");
-
-    /* Minimal read loop — replaced by monitor.c threading later */
-    uint8_t buf[SERIAL_BUF_SIZE];
-    while (running) {
-        for (int i = 0; i < nports; i++) {
-            if (!serial_is_open(&ports[i])) {
-                if (ports[i].auto_reconnect) serial_reopen(&ports[i]);
-                continue;
-            }
-            int n = serial_read(&ports[i], buf, sizeof(buf) - 1);
-            if (n > 0) {
-                buf[n] = '\0';
-                char *line = (char *)buf;
-                char *end;
-                while ((end = strchr(line, '\n')) != NULL) {
-                    *end = '\0';
-                    if (line[0]) printf("[%s] %s\n", ports[i].name, line);
-                    line = end + 1;
-                }
-                if (line[0]) printf("[%s] %s", ports[i].name, line);
-            }
+        if (strcmp(argv[i], "--list") == 0) {
+            char ports[SERIAL_MAX_PORTS][64];
+            int n = serial_list(ports, SERIAL_MAX_PORTS);
+            printf("Available serial ports (%d):\n", n);
+            for (int j = 0; j < n; j++)
+                printf("  %s\n", ports[j]);
+            return 0;
+        }
+        if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            usage(argv[0]); return 0;
         }
     }
 
-    printf("\nShutting down...\n");
-    for (int i = 0; i < nports; i++) serial_close(&ports[i]);
+    config_t cfg;
+    config_defaults(&cfg);
+
+    /* Load config file if --config is present */
+    for (int i = 1; i < argc - 1; i++) {
+        if (strcmp(argv[i], "--config") == 0) {
+            if (config_load_file(&cfg, argv[i+1]) != 0)
+                fprintf(stderr, "Warning: could not load %s\n", argv[i+1]);
+            break;
+        }
+    }
+
+    /* CLI overrides */
+    config_parse_args(&cfg, argc, argv);
+
+    if (cfg.nports == 0) {
+        fprintf(stderr, "Error: no ports specified.\n");
+        usage(argv[0]);
+        return 1;
+    }
+
+    signal(SIGINT,  on_signal);
+    signal(SIGTERM, on_signal);
+
+    if (monitor_init(&g_monitor, &cfg) != 0) {
+        fprintf(stderr, "monitor_init failed\n");
+        return 1;
+    }
+
+    monitor_run(&g_monitor);   /* blocks */
+
+    monitor_print_summary(&g_monitor);
+    monitor_free(&g_monitor);
     return 0;
 }

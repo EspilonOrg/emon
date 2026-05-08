@@ -1,9 +1,9 @@
 #include "serial.h"
 
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <time.h>
 
 /* ── Internal helpers ──────────────────────────────────────────────────── */
@@ -82,7 +82,7 @@ void serial_close(serial_port_t *p)
 int serial_reopen(serial_port_t *p)
 {
     serial_close(p);
-    usleep(200 * 1000); /* 200ms pause before retry */
+    {struct timespec _ts = {0, 200000000L}; nanosleep(&_ts, NULL);} /* 200ms pause before retry */
     return serial_open(p);
 }
 
@@ -151,10 +151,10 @@ int serial_reset(serial_port_t *p)
      */
     serial_set_dtr(p, false);
     serial_set_rts(p, true);
-    usleep(100 * 1000);
+    {struct timespec _ts = {0, 100000000L}; nanosleep(&_ts, NULL);}
     serial_set_dtr(p, true);
     serial_set_rts(p, false);
-    usleep(50 * 1000);
+    {struct timespec _ts = {0, 50000000L}; nanosleep(&_ts, NULL);}
     return 0;
 }
 
