@@ -94,10 +94,19 @@ int monitor_init(monitor_t *m, config_t *cfg)
     };
     strncpy(rcfg.logdir, cfg->logdir, sizeof(rcfg.logdir) - 1);
 
+    /* Compute name column width = longest device name (min 1, max 24) */
+    int name_w = 0;
+    for (int i = 0; i < cfg->nports; i++) {
+        int l = (int)strlen(cfg->names[i]);
+        if (l > name_w) name_w = l;
+    }
+    if (name_w > 24) name_w = 24;
+
     display_cfg_t dcfg = {
         .verbose    = cfg->verbose,
         .timestamps = cfg->timestamps,
         .color      = cfg->color,
+        .name_width = name_w,
     };
     display_init(&dcfg);
 

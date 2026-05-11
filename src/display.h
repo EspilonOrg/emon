@@ -9,6 +9,7 @@ typedef struct {
     bool    timestamps;   /* prepend HH:MM:SS.mmm */
     bool    color;        /* ANSI colors */
     bool    show_stats;   /* live stats line */
+    int     name_width;   /* device name column width (0 = auto/dynamic) */
 } display_cfg_t;
 
 void display_init(const display_cfg_t *cfg);

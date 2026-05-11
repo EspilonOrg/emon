@@ -22,6 +22,7 @@ static display_cfg_t g_cfg = {
     .timestamps = true,
     .color      = true,
     .show_stats = false,
+    .name_width = 0,
 };
 
 static const char *sev_badge(severity_t s)
@@ -56,9 +57,10 @@ void display_line(const char *device, const char *color, const char *line)
 {
     if (!g_cfg.verbose) return;
     print_ts();
-    printf("%s[%-10s]%s %s\n",
+    int w = g_cfg.name_width > 0 ? g_cfg.name_width : (int)strlen(device);
+    printf("%s[%-*s]%s %s\n",
            g_cfg.color ? color  : "",
-           device,
+           w, device,
            g_cfg.color ? RESET  : "",
            line);
 }
@@ -66,9 +68,10 @@ void display_line(const char *device, const char *color, const char *line)
 void display_event(const det_event_t *ev, const char *device_color)
 {
     print_ts();
-    printf("%s[%-10s]%s %s %s\n",
+    int w = g_cfg.name_width > 0 ? g_cfg.name_width : (int)strlen(ev->device);
+    printf("%s[%-*s]%s %s %s\n",
            g_cfg.color ? device_color : "",
-           ev->device,
+           w, ev->device,
            g_cfg.color ? RESET        : "",
            g_cfg.color ? sev_badge(ev->severity) : severity_str(ev->severity),
            ev->line);
