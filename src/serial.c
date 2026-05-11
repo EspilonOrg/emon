@@ -6,6 +6,11 @@
 #include <stdlib.h>
 #include <time.h>
 
+#ifndef _WIN32
+#include <termios.h>
+#include <sys/ioctl.h>
+#endif
+
 /* ── Internal helpers ──────────────────────────────────────────────────── */
 
 static uint64_t now_ms(void)
@@ -53,6 +58,27 @@ int serial_open(serial_port_t *p)
         p->state = PORT_STATE_ERROR;
         return -1;
     }
+
+#ifndef _WIN32
+    /*
+     * Prevent USB-UART bridge from resetting the device (ESP32, Arduino, etc.)
+     *   1. Clear HUPCL so close() doesn't drop DTR (next open() won't pulse it).
+     *   2. Hold DTR and RTS de-asserted explicitly — keeps EN/GPIO0 in run state
+     *      on standard auto-reset circuits (CP2102, CH340, FT232).
+     * The very first open() may still emit a brief pulse, but subsequent
+     * reopens via auto-reconnect won't.
+     */
+    int fd = -1;
+    if (sp_get_port_handle(p->sp, &fd) == SP_OK && fd >= 0) {
+        struct termios t;
+        if (tcgetattr(fd, &t) == 0) {
+            t.c_cflag &= ~HUPCL;
+            tcsetattr(fd, TCSANOW, &t);
+        }
+    }
+    sp_set_dtr(p->sp, SP_DTR_OFF);
+    sp_set_rts(p->sp, SP_RTS_OFF);
+#endif
 
     if (configure_port(p->sp, p->baud) != 0) {
         sp_close(p->sp);
