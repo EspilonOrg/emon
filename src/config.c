@@ -54,6 +54,12 @@ int config_load_file(config_t *cfg, const char *path)
 
 int config_parse_args(config_t *cfg, int argc, char *argv[])
 {
+    /*
+     * Two passes: --name overrides must apply after all positional port
+     * args are registered, since they can appear in any order on the CLI.
+     */
+
+    /* Pass 1 — everything except --name (its arg is skipped here) */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--baud") == 0 && i+1 < argc)
             cfg->baud = atoi(argv[++i]);
@@ -72,21 +78,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
         else if (strcmp(argv[i], "--no-color") == 0) cfg->color = false;
         else if (strcmp(argv[i], "--no-timestamps") == 0) cfg->timestamps = false;
         else if (strcmp(argv[i], "--name") == 0 && i+1 < argc) {
-            /* --name ttyACM0=MyBoard */
-            char *arg = argv[++i];
-            char *eq  = strchr(arg, '=');
-            if (eq) {
-                /* Find matching port */
-                char port[64];
-                snprintf(port, sizeof(port), "/dev/%.*s", (int)(eq-arg), arg);
-                for (int j = 0; j < cfg->nports; j++) {
-                    if (strcmp(cfg->ports[j], port) == 0 ||
-                        strcmp(cfg->ports[j]+5, arg) == 0) {
-                        strncpy(cfg->names[j], eq+1, 31);
-                        break;
-                    }
-                }
-            }
+            i++;  /* defer to pass 2 */
         }
         else if (argv[i][0] != '-' && cfg->nports < CONFIG_MAX_PORTS) {
             /* Port path */
@@ -98,6 +90,30 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             /* Default name = basename */
             const char *base = strrchr(cfg->ports[j], '/');
             strncpy(cfg->names[j], base ? base+1 : cfg->ports[j], 31);
+        }
+    }
+
+    /* Pass 2 — apply --name overrides now that ports are all registered.
+     * Accepts both bare basename ("ttyUSB0=foo") and full path
+     * ("/dev/ttyUSB0=foo"). */
+    for (int i = 1; i < argc - 1; i++) {
+        if (strcmp(argv[i], "--name") != 0) continue;
+
+        char *arg = argv[i+1];
+        char *eq  = strchr(arg, '=');
+        if (!eq) continue;
+        int  keylen = (int)(eq - arg);
+        char port_full[64];
+        snprintf(port_full, sizeof(port_full),
+                 (strncmp(arg, "/dev/", 5) == 0) ? "%.*s" : "/dev/%.*s",
+                 keylen, arg);
+
+        for (int j = 0; j < cfg->nports; j++) {
+            if (strcmp(cfg->ports[j], port_full) == 0) {
+                strncpy(cfg->names[j], eq+1, 31);
+                cfg->names[j][31] = '\0';
+                break;
+            }
         }
     }
     return 0;
