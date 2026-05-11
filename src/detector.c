@@ -70,6 +70,34 @@ static const builtin_t builtin_zephyr[] = {
     { NULL, NULL, SEV_INFO, false }
 };
 
+/*
+ * Espilon firmware + ESPM runtime patterns.
+ * Loaded BEFORE the generic esp32 family when --family espilon is selected,
+ * so specific Espilon events win over the catch-all "^E \([0-9]+\)" rule.
+ */
+static const builtin_t builtin_espilon[] = {
+    /* Security — MITM and crypto failures take precedence */
+    { "MITM_DETECTED",    "Server verification FAILED",        SEV_CRITICAL, false },
+    { "AEAD_FAIL",        "AEAD auth/decrypt failed",          SEV_HIGH,     false },
+    { "NO_CHALLENGE",     "server_verify: no challenge",       SEV_HIGH,     false },
+    /* ESPM module lifecycle faults */
+    { "ESPM_PANIC",       "espm_panic.*module.*faulted",       SEV_CRITICAL, true  },
+    { "ESPM_WATCHDOG",    "espm_watchdog.*timeout",            SEV_HIGH,     false },
+    { "ESPM_LOAD_FAIL",   "espm.*load.*failed",                SEV_HIGH,     false },
+    /* Transport state changes — informational by default, useful in events log */
+    { "PEER_CLOSED",      "RX: peer closed connection",        SEV_WARN,     false },
+    { "WIFI_DISCONNECT",  "CORE_WIFI: Disconnected",           SEV_WARN,     false },
+    { "CONNECT_FAIL",     "CORE_WIFI: connect\\(\\) failed",   SEV_WARN,     false },
+    /* Positive signals — useful for runner assertions */
+    { "AUTH_OK",          "Server identity verified",          SEV_INFO,     false },
+    { "HANDSHAKE_OK",     "CORE_WIFI: Handshake done",         SEV_INFO,     false },
+    { "ESPM_LOADED",      "espm.*module.*loaded",              SEV_INFO,     false },
+    { "ESPM_UNLOADED",    "espm.*module.*unloaded",            SEV_INFO,     false },
+    { "C2_CMD",           "DISPATCH: C2 CMD:",                 SEV_INFO,     false },
+    { "READY",            "ESPILON: espilon ready",            SEV_INFO,     false },
+    { NULL, NULL, SEV_INFO, false }
+};
+
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
 static uint64_t now_ms(void)
@@ -176,13 +204,19 @@ int detector_add_rule(detector_t *d, const char *name,
 
 int detector_load_builtin(detector_t *d, const char *family)
 {
-    const builtin_t *tbl = NULL;
+    const builtin_t *tbl  = NULL;
+    const builtin_t *tbl2 = NULL;  /* optional chained family */
 
     if      (strcmp(family, "esp32")   == 0) tbl = builtin_esp32;
     else if (strcmp(family, "stm32")   == 0) tbl = builtin_stm32;
     else if (strcmp(family, "arduino") == 0) tbl = builtin_arduino;
     else if (strcmp(family, "freertos")== 0) tbl = builtin_freertos;
     else if (strcmp(family, "zephyr")  == 0) tbl = builtin_zephyr;
+    else if (strcmp(family, "espilon") == 0) {
+        /* Espilon devices run on ESP-IDF — chain to esp32 for generic crashes. */
+        tbl  = builtin_espilon;
+        tbl2 = builtin_esp32;
+    }
     else {
         fprintf(stderr, "detector: unknown family '%s'\n", family);
         return -1;
@@ -193,6 +227,13 @@ int detector_load_builtin(detector_t *d, const char *family)
         if (detector_add_rule(d, tbl[i].name, tbl[i].pattern,
                               tbl[i].sev, tbl[i].reset) == 0)
             loaded++;
+    }
+    if (tbl2) {
+        for (int i = 0; tbl2[i].name; i++) {
+            if (detector_add_rule(d, tbl2[i].name, tbl2[i].pattern,
+                                  tbl2[i].sev, tbl2[i].reset) == 0)
+                loaded++;
+        }
     }
     return loaded;
 }

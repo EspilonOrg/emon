@@ -24,7 +24,7 @@ static void usage(const char *prog)
         "\n"
         "Options:\n"
         "  --baud <N>            Baud rate (default: 115200)\n"
-        "  --family <name>       Built-in pattern family: esp32 stm32 arduino freertos zephyr\n"
+        "  --family <name>       Built-in pattern family: espilon esp32 stm32 arduino freertos zephyr\n"
         "  --patterns <file>     Load extra .pat pattern file\n"
         "  --logdir <dir>        Log directory (default: logs/)\n"
         "  --name <port>=<name>  Friendly name for a port\n"
