@@ -1,2 +1,4 @@
 espilon-monitor
 src/*.o
+tests/test_detector
+logs/
