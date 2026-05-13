@@ -75,6 +75,12 @@ int  serial_detect_device(serial_port_t *p, char *family_out, size_t family_len)
  * Returns 0 and fills family_out on success, -1 if unrecognised. */
 int  serial_detect_passive(serial_port_t *p, char *family_out, size_t family_len);
 
+/* USB metadata detection — queries VID/PID and description string without
+ * opening the port. Instant, works whether device is idle or booting.
+ * path must be the full port path (e.g. "/dev/ttyUSB0").
+ * Returns 0 on success, -1 if USB metadata unavailable or unrecognised. */
+int  serial_detect_from_usb(const char *path, char *family_out, size_t family_len);
+
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 const char *serial_state_str(port_state_t state);
 bool        serial_is_open(const serial_port_t *p);

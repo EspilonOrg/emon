@@ -275,6 +275,75 @@ int serial_detect_passive(serial_port_t *p, char *family_out, size_t family_len)
     return match_family(boot, family_out, family_len);
 }
 
+int serial_detect_from_usb(const char *path, char *family_out, size_t family_len)
+{
+    struct sp_port *port = NULL;
+    if (sp_get_port_by_name(path, &port) != SP_OK) return -1;
+
+    int matched = 0;
+
+    /* ── Step 1: USB VID/PID ─────────────────────────────────────────── */
+    int vid = 0, pid = 0;
+    if (sp_get_port_usb_vid_pid(port, &vid, &pid) == SP_OK) {
+        switch (vid) {
+        /* Espressif internal USB-JTAG (C3/C6/H2/S3/P4) */
+        case 0x303A:
+            strncpy(family_out, "esp32", family_len - 1);
+            matched = 1; break;
+
+        /* Silicon Labs CP2101/CP2102/CP2104 — ubiquitous on ESP32 devkits */
+        case 0x10C4:
+        /* QinHeng CH340/CH341 — very common cheap ESP32 boards */
+        case 0x1A86:
+        /* FTDI FT232R/FT231X — older devkits */
+        case 0x0403:
+            strncpy(family_out, "esp32", family_len - 1);
+            matched = 1; break;
+
+        /* STMicroelectronics ST-Link/V2/V3 */
+        case 0x0483:
+            strncpy(family_out, "stm32", family_len - 1);
+            matched = 1; break;
+
+        /* Arduino LLC */
+        case 0x2341:
+        /* Arduino.org */
+        case 0x2A03:
+        /* Adafruit (CircuitPython/Arduino-compatible) */
+        case 0x239A:
+            strncpy(family_out, "arduino", family_len - 1);
+            matched = 1; break;
+
+        default:
+            break;
+        }
+    }
+
+    /* ── Step 2: description string (fallback for unknown VIDs) ─────── */
+    if (!matched) {
+        const char *desc = sp_get_port_description(port);
+        if (desc) {
+            if (strstr(desc, "CP210") || strstr(desc, "CH340") ||
+                strstr(desc, "CH341") || strstr(desc, "Espressif") ||
+                strstr(desc, "ESP32") || strstr(desc, "ESP8266")) {
+                strncpy(family_out, "esp32", family_len - 1);
+                matched = 1;
+            } else if (strstr(desc, "STMicro") || strstr(desc, "ST-Link") ||
+                       strstr(desc, "STLink")) {
+                strncpy(family_out, "stm32", family_len - 1);
+                matched = 1;
+            } else if (strstr(desc, "Arduino")) {
+                strncpy(family_out, "arduino", family_len - 1);
+                matched = 1;
+            }
+        }
+    }
+
+    if (matched) family_out[family_len - 1] = '\0';
+    sp_free_port(port);
+    return matched ? 0 : -1;
+}
+
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 
 const char *serial_state_str(port_state_t state)

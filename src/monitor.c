@@ -152,19 +152,42 @@ int monitor_init(monitor_t *m, config_t *cfg)
         dev->color   = display_device_color(i);
         dev->running = true;
 
+        /* ── Auto-detect family (priority chain) ──────────────────────
+         * 1. --family explicit → skip all detection
+         * 2. USB VID/PID + description (instant, port not yet open)
+         * 3. Passive serial read 2s (can refine esp32 → espilon)
+         * 4. Fallback: use cfg->builtin_family (default "esp32")
+         * ────────────────────────────────────────────────────────── */
+        char detected[32];
+        const char *family = cfg->builtin_family;
+
+        if (!cfg->family_explicit) {
+            /* Step 2: USB metadata — query before opening the port */
+            if (serial_detect_from_usb(dev->port.path, detected,
+                                       sizeof(detected)) == 0) {
+                family = detected;
+                fprintf(stderr, "[%s] auto-detected (USB): %s\n",
+                        dev->port.name, family);
+            }
+        }
+
         if (serial_open(&dev->port) != 0) {
             fprintf(stderr, "[monitor] failed to open %s\n", dev->port.path);
             m->ndevices++;
             continue;
         }
 
-        /* Auto-detect chip family if --family was not explicitly given */
-        char detected[32];
-        const char *family = cfg->builtin_family;
-        if (!cfg->family_explicit &&
-            serial_detect_passive(&dev->port, detected, sizeof(detected)) == 0) {
-            family = detected;
-            fprintf(stderr, "[%s] auto-detected: %s\n", dev->port.name, family);
+        if (!cfg->family_explicit) {
+            /* Step 3: passive read — may refine family (e.g. esp32 → espilon) */
+            char refined[32];
+            if (serial_detect_passive(&dev->port, refined, sizeof(refined)) == 0
+                && strcmp(refined, "unknown") != 0) {
+                if (strcmp(refined, family) != 0) {
+                    fprintf(stderr, "[%s] auto-detected (live): %s\n",
+                            dev->port.name, refined);
+                }
+                family = refined;
+            }
         }
 
         detector_init(&dev->detector);
