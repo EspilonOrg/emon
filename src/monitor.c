@@ -1,4 +1,5 @@
 #include "monitor.h"
+#include "interactive.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,6 +11,9 @@ typedef struct {
     monitor_t        *mon;
     monitor_device_t *dev;
 } thread_arg_t;
+
+/* Global monitor pointer — used by interactive_stop_all() */
+static monitor_t *s_global_monitor = NULL;
 
 static uint64_t now_ms(void)
 {
@@ -156,7 +160,8 @@ void monitor_free(monitor_t *m)
 int monitor_run(monitor_t *m)
 {
     if (!m) return -1;
-    m->running = true;
+    m->running     = true;
+    s_global_monitor = m;
 
     display_banner(m->ndevices);
 
@@ -175,8 +180,36 @@ int monitor_run(monitor_t *m)
     }
     printf("\n");
 
+    /* Interactive mode — start stdin thread targeting the right port */
+    if (m->cfg->interactive) {
+        monitor_device_t *target = NULL;
+        if (m->cfg->input_port[0]) {
+            /* Find the named/pathed port */
+            for (int i = 0; i < m->ndevices; i++) {
+                const char *p = m->devices[i].port.path;
+                const char *n = m->devices[i].port.name;
+                if (strcmp(p, m->cfg->input_port) == 0 ||
+                    strcmp(n, m->cfg->input_port) == 0 ||
+                    /* bare name like "ttyUSB0" */
+                    (strrchr(p, '/') &&
+                     strcmp(strrchr(p, '/') + 1, m->cfg->input_port) == 0)) {
+                    target = &m->devices[i];
+                    break;
+                }
+            }
+        }
+        if (!target && m->ndevices > 0)
+            target = &m->devices[0];   /* default: first port */
+
+        if (target)
+            interactive_start(&target->port);
+    }
+
     for (int i = 0; i < m->ndevices; i++)
         pthread_join(m->devices[i].thread, NULL);
+
+    if (m->cfg->interactive)
+        interactive_stop();
 
     return 0;
 }
@@ -187,6 +220,12 @@ void monitor_stop(monitor_t *m)
     m->running = false;
     for (int i = 0; i < m->ndevices; i++)
         m->devices[i].running = false;
+}
+
+void monitor_stop_all(void)
+{
+    if (s_global_monitor)
+        monitor_stop(s_global_monitor);
 }
 
 void monitor_print_summary(const monitor_t *m)

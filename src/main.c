@@ -6,6 +6,7 @@
 #include "config.h"
 #include "monitor.h"
 #include "serial.h"
+#include "interactive.h"
 
 #define VERSION "0.1.0"
 
@@ -25,6 +26,9 @@ static void usage(const char *prog)
         "Options:\n"
         "  --baud <N>            Baud rate (default: 115200)\n"
         "  --family <name>       Built-in pattern family: espilon esp32 stm32 arduino freertos zephyr\n"
+        "  --interactive, -i    Bidirectional mode: stdin → device, device → stdout\n"
+        "                       Optional: -i <port>  to select target port when multi-port\n"
+        "                       Escape key Ctrl+A:  X=quit  A=send Ctrl+A  H=help\n"
         "  --patterns <file>     Load extra .pat pattern file\n"
         "  --logdir <dir>        Log directory (default: logs/)\n"
         "  --name <port>=<name>  Friendly name for a port\n"
@@ -94,6 +98,9 @@ int main(int argc, char *argv[])
         fprintf(stderr, "monitor_init failed\n");
         return 1;
     }
+
+    if (cfg.interactive && interactive_init() != 0)
+        cfg.interactive = false;   /* fallback: observe-only if tty unavailable */
 
     monitor_run(&g_monitor);   /* blocks */
 

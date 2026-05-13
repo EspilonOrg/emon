@@ -29,6 +29,10 @@ typedef struct {
     bool       auto_reset;
     severity_t reset_threshold;
     int        reset_cooldown_ms;
+
+    /* Interactive mode */
+    bool       interactive;
+    char       input_port[64];   /* port that receives stdin; empty = first port */
 } config_t;
 
 void config_defaults(config_t *cfg);

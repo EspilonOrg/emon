@@ -15,6 +15,8 @@ void config_defaults(config_t *cfg)
     cfg->auto_reset       = false;
     cfg->reset_threshold  = SEV_CRITICAL;
     cfg->reset_cooldown_ms= 2000;
+    cfg->interactive      = false;
+    cfg->input_port[0]    = '\0';
     strncpy(cfg->logdir, "logs", sizeof(cfg->logdir) - 1);
     strncpy(cfg->builtin_family, "esp32", sizeof(cfg->builtin_family) - 1);
 }
@@ -73,6 +75,20 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                         argv[++i], 255);
         }
         else if (strcmp(argv[i], "--auto-reset") == 0) cfg->auto_reset = true;
+        else if (strcmp(argv[i], "--interactive") == 0 ||
+                 strcmp(argv[i], "-i") == 0) {
+            cfg->interactive = true;
+            /* Optional next arg: port name for input target (not a flag) */
+            if (i+1 < argc && argv[i+1][0] != '-') {
+                /* Check if it looks like a port (ttyUSB0, /dev/...) not a file */
+                const char *next = argv[i+1];
+                if (strncmp(next, "tty", 3) == 0 ||
+                    strncmp(next, "/dev/", 5) == 0) {
+                    strncpy(cfg->input_port, next, sizeof(cfg->input_port) - 1);
+                    i++;
+                }
+            }
+        }
         else if (strcmp(argv[i], "-v") == 0 || strcmp(argv[i], "--verbose") == 0)
             cfg->verbose = true;
         else if (strcmp(argv[i], "--no-color") == 0) cfg->color = false;

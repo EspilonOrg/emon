@@ -19,7 +19,8 @@ SRCS    = src/main.c \
           src/recorder.c \
           src/reset.c \
           src/display.c \
-          src/config.c
+          src/config.c \
+          src/interactive.c
 OBJS    = $(SRCS:.c=.o)
 
 .PHONY: all clean install check test
