@@ -1,5 +1,4 @@
 #include "display.h"
-#include "scrollback.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -58,42 +57,32 @@ void display_init(const display_cfg_t *cfg)
 void display_line(const char *device, const char *color, const char *line)
 {
     if (!g_cfg.verbose) return;
-
+    print_ts();
     int w = g_cfg.name_width > 0 ? g_cfg.name_width : (int)strlen(device);
-    char buf[SCROLLBACK_WIDTH];
-    snprintf(buf, sizeof(buf), "%s[%-*s]%s %s",
-             g_cfg.color ? color : "", w, device,
-             g_cfg.color ? RESET : "", line);
-
-    if (!scrollback_is_active()) {
-        print_ts();
-        printf("%s\n", buf);
-    }
-    scrollback_push(buf);
+    printf("%s[%-*s]%s %s\n",
+           g_cfg.color ? color  : "",
+           w, device,
+           g_cfg.color ? RESET  : "",
+           line);
 }
 
 void display_event(const det_event_t *ev, const char *device_color)
 {
+    print_ts();
     int w = g_cfg.name_width > 0 ? g_cfg.name_width : (int)strlen(ev->device);
-    char buf[SCROLLBACK_WIDTH];
-    snprintf(buf, sizeof(buf), "%s[%-*s]%s %s %s",
-             g_cfg.color ? device_color : "",
-             w, ev->device,
-             g_cfg.color ? RESET        : "",
-             g_cfg.color ? sev_badge(ev->severity) : severity_str(ev->severity),
-             ev->line);
+    printf("%s[%-*s]%s %s %s\n",
+           g_cfg.color ? device_color : "",
+           w, ev->device,
+           g_cfg.color ? RESET        : "",
+           g_cfg.color ? sev_badge(ev->severity) : severity_str(ev->severity),
+           ev->line);
 
-    if (!scrollback_is_active()) {
-        print_ts();
-        printf("%s\n", buf);
-        if (ev->severity >= SEV_CRITICAL)
-            printf("%s  ⚠  %s — %s%s\n",
-                   g_cfg.color ? "\033[1;91m" : "",
-                   ev->rule ? ev->rule->name : "?",
-                   ev->device,
-                   g_cfg.color ? RESET : "");
-    }
-    scrollback_push(buf);
+    if (ev->severity >= SEV_CRITICAL)
+        printf("%s  ⚠  %s — %s%s\n",
+               g_cfg.color ? "\033[1;91m" : "",
+               ev->rule ? ev->rule->name : "?",
+               ev->device,
+               g_cfg.color ? RESET : "");
 }
 
 void display_stats(int ndevices, const char **names,

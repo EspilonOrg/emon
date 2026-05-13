@@ -1,6 +1,7 @@
 #include "monitor.h"
 #include "interactive.h"
 #include "display.h"
+#include "scrollback.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -220,6 +221,7 @@ int monitor_run(monitor_t *m)
     m->running     = true;
     s_global_monitor = m;
 
+    scrollback_init();
     display_banner(m->ndevices);
 
     for (int i = 0; i < m->ndevices; i++) {

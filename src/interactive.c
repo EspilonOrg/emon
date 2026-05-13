@@ -1,5 +1,6 @@
 #include "interactive.h"
 #include "serial.h"
+#include "scrollback.h"
 
 #define RESET  "\033[0m"
 #define BOLD   "\033[1m"
@@ -35,7 +36,8 @@ void interactive_print_help(void)
     dprintf(STDERR_FILENO,
         "\r\n"
         BOLD "[espilon-monitor interactive]" RESET "\r\n"
-        "  Ctrl+A  X   — quit\r\n"
+        "  Ctrl+A  [   — enter scrollback (↑↓ PgUp/PgDn / search  q=exit)\r\n"
+        "  Ctrl+A  X   — quit monitor\r\n"
         "  Ctrl+A  A   — send literal Ctrl+A to device\r\n"
         "  Ctrl+A  H   — this help\r\n"
         "\r\n");
@@ -118,6 +120,11 @@ static void *stdin_thread(void *arg)
                 case ESCAPE_KEY:
                     /* Ctrl+A Ctrl+A → send literal 0x01 to device */
                     serial_write(a->port, &c, 1);
+                    break;
+
+                case '[':
+                    /* Ctrl+A [ → enter scrollback mode */
+                    scrollback_enter();
                     break;
 
                 case 'h': case 'H': case '?':
