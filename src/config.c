@@ -75,6 +75,32 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                         argv[++i], 255);
         }
         else if (strcmp(argv[i], "--auto-reset") == 0) cfg->auto_reset = true;
+        else if (strcmp(argv[i], "--timeout") == 0 && i+1 < argc)
+            cfg->timeout_sec = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--json-events") == 0)
+            cfg->json_events = true;
+        else if ((strcmp(argv[i], "--exit-on") == 0 ||
+                  strcmp(argv[i], "--wait-for") == 0) && i+1 < argc) {
+            int is_wait = (strcmp(argv[i], "--wait-for") == 0);
+            char *arg = argv[++i];
+            if (cfg->nexit_rules < CONFIG_MAX_EXIT_RULES) {
+                exit_rule_t *r = &cfg->exit_rules[cfg->nexit_rules++];
+                /* Format: RULE_NAME  or  RULE_NAME=N */
+                char *eq = strchr(arg, '=');
+                if (eq && !is_wait) {
+                    int namelen = (int)(eq - arg);
+                    if (namelen >= (int)sizeof(r->rule_name))
+                        namelen = (int)sizeof(r->rule_name) - 1;
+                    strncpy(r->rule_name, arg, (size_t)namelen);
+                    r->rule_name[namelen] = '\0';
+                    r->exit_code = atoi(eq + 1);
+                } else {
+                    strncpy(r->rule_name, arg, sizeof(r->rule_name) - 1);
+                    r->rule_name[sizeof(r->rule_name)-1] = '\0';
+                    r->exit_code = 0;
+                }
+            }
+        }
         else if (strcmp(argv[i], "--interactive") == 0 ||
                  strcmp(argv[i], "-i") == 0) {
             cfg->interactive = true;

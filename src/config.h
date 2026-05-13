@@ -6,6 +6,13 @@
 
 #define CONFIG_MAX_PORTS    32
 #define CONFIG_MAX_PATTERNS 16
+#define CONFIG_MAX_EXIT_RULES 16
+
+/* Exit rule: quit when named pattern fires, return exit_code */
+typedef struct {
+    char rule_name[64];
+    int  exit_code;
+} exit_rule_t;
 
 typedef struct {
     /* Ports */
@@ -33,6 +40,14 @@ typedef struct {
     /* Interactive mode */
     bool       interactive;
     char       input_port[64];   /* port that receives stdin; empty = first port */
+
+    /* Exit on pattern */
+    exit_rule_t exit_rules[CONFIG_MAX_EXIT_RULES];
+    int         nexit_rules;
+    int         timeout_sec;     /* 0 = no timeout; exit 124 on expiry */
+
+    /* Machine-readable output */
+    bool        json_events;     /* emit NDJSON to stdout for each event */
 } config_t;
 
 void config_defaults(config_t *cfg);

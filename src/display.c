@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include <stdint.h>
 
 #define RESET   "\033[0m"
 #define BOLD    "\033[1m"
@@ -113,4 +114,31 @@ void display_banner(int nports)
 const char *display_device_color(int idx)
 {
     return DEVICE_COLORS[idx % N_DEVICE_COLORS];
+}
+
+void display_event_json(const det_event_t *ev)
+{
+    /* Timestamp in milliseconds since Unix epoch */
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    uint64_t ms = (uint64_t)ts.tv_sec * 1000 + (uint64_t)(ts.tv_nsec / 1000000);
+
+    /* Escape double quotes in the line field */
+    char escaped[sizeof(ev->line) * 2];
+    int  ei = 0;
+    for (int i = 0; ev->line[i] && ei < (int)sizeof(escaped) - 2; i++) {
+        if (ev->line[i] == '"' || ev->line[i] == '\\')
+            escaped[ei++] = '\\';
+        escaped[ei++] = ev->line[i];
+    }
+    escaped[ei] = '\0';
+
+    printf("{\"ts\":%llu,\"device\":\"%s\",\"rule\":\"%s\","
+           "\"severity\":\"%s\",\"line\":\"%s\"}\n",
+           (unsigned long long)ms,
+           ev->device,
+           ev->rule ? ev->rule->name : "?",
+           severity_str(ev->severity),
+           escaped);
+    fflush(stdout);
 }

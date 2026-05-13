@@ -25,6 +25,9 @@ void display_event(const det_event_t *ev, const char *device_color);
 void display_stats(int ndevices, const char **names,
                    const int *crash_counts, uint64_t uptime_ms);
 
+/* Emit a single NDJSON line for this event (for --json-events) */
+void display_event_json(const det_event_t *ev);
+
 /* Print startup banner */
 void display_banner(int nports);
 

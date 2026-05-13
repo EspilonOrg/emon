@@ -7,6 +7,7 @@
 #include "monitor.h"
 #include "serial.h"
 #include "interactive.h"
+#include "display.h"
 
 #define VERSION "0.1.0"
 
@@ -29,6 +30,10 @@ static void usage(const char *prog)
         "  --interactive, -i    Bidirectional mode: stdin → device, device → stdout\n"
         "                       Optional: -i <port>  to select target port when multi-port\n"
         "                       Escape key Ctrl+A:  X=quit  A=send Ctrl+A  H=help\n"
+        "  --exit-on <RULE>[=N] Exit with code N when named pattern fires (default N=0)\n"
+        "  --wait-for <RULE>    Exit 0 when pattern fires, 124 on timeout\n"
+        "  --timeout <secs>     Exit 124 after N seconds (use with --exit-on / --wait-for)\n"
+        "  --json-events        Emit NDJSON to stdout for each detected event\n"
         "  --patterns <file>     Load extra .pat pattern file\n"
         "  --logdir <dir>        Log directory (default: logs/)\n"
         "  --name <port>=<name>  Friendly name for a port\n"
@@ -105,6 +110,7 @@ int main(int argc, char *argv[])
     monitor_run(&g_monitor);   /* blocks */
 
     monitor_print_summary(&g_monitor);
+    int exit_code = monitor_get_exit_code();
     monitor_free(&g_monitor);
-    return 0;
+    return exit_code;
 }

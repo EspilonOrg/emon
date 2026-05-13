@@ -37,6 +37,8 @@ void monitor_free(monitor_t *m);
 
 int  monitor_run(monitor_t *m);   /* blocks until stop */
 void monitor_stop(monitor_t *m);
+void monitor_stop_all(void);
+int  monitor_get_exit_code(void);
 
 void monitor_print_summary(const monitor_t *m);
 

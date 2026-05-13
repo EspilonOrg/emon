@@ -1,10 +1,12 @@
 #include "monitor.h"
 #include "interactive.h"
+#include "display.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <stdatomic.h>
 
 /* Thread argument — carries both device and parent monitor */
 typedef struct {
@@ -13,7 +15,12 @@ typedef struct {
 } thread_arg_t;
 
 /* Global monitor pointer — used by interactive_stop_all() */
-static monitor_t *s_global_monitor = NULL;
+static monitor_t   *s_global_monitor = NULL;
+
+static void *timeout_thread(void *arg);   /* forward decl */
+
+/* Shared exit code — set by the first matching exit rule or timeout */
+static atomic_int   s_exit_code = 0;
 
 static uint64_t now_ms(void)
 {
@@ -67,9 +74,22 @@ static void *device_thread(void *arg)
                     if (hit) {
                         dev->crash_count++;
                         display_event(&ev, dev->color);
+                        if (mon->cfg->json_events)
+                            display_event_json(&ev);
                         recorder_save_event(&dev->recorder, &ev);
                         if (mon->cfg->auto_reset)
                             resetter_maybe_reset(&dev->resetter, &ev);
+                        /* Check exit rules — first match wins */
+                        for (int r = 0; r < mon->cfg->nexit_rules; r++) {
+                            if (strcmp(ev.rule->name,
+                                       mon->cfg->exit_rules[r].rule_name) == 0) {
+                                atomic_store(&s_exit_code,
+                                             mon->cfg->exit_rules[r].exit_code);
+                                pthread_mutex_unlock(&mon->print_lock);
+                                monitor_stop_all();
+                                goto thread_done;
+                            }
+                        }
                     } else {
                         display_line(dev->port.name, dev->color, linebuf);
                     }
@@ -81,6 +101,7 @@ static void *device_thread(void *arg)
             }
         }
     }
+thread_done:
     return NULL;
 }
 
@@ -180,6 +201,13 @@ int monitor_run(monitor_t *m)
     }
     printf("\n");
 
+    /* Timeout thread */
+    pthread_t timeout_tid = 0;
+    if (m->cfg->timeout_sec > 0) {
+        pthread_create(&timeout_tid, NULL, timeout_thread,
+                       &m->cfg->timeout_sec);
+    }
+
     /* Interactive mode — start stdin thread targeting the right port */
     if (m->cfg->interactive) {
         monitor_device_t *target = NULL;
@@ -211,6 +239,12 @@ int monitor_run(monitor_t *m)
     if (m->cfg->interactive)
         interactive_stop();
 
+    if (timeout_tid) {
+        /* Cancel the timeout thread if we exited before it fired */
+        pthread_cancel(timeout_tid);
+        pthread_join(timeout_tid, NULL);
+    }
+
     return 0;
 }
 
@@ -226,6 +260,24 @@ void monitor_stop_all(void)
 {
     if (s_global_monitor)
         monitor_stop(s_global_monitor);
+}
+
+int monitor_get_exit_code(void)
+{
+    return atomic_load(&s_exit_code);
+}
+
+/* Timeout thread — fires after cfg->timeout_sec, exits with code 124 */
+static void *timeout_thread(void *arg)
+{
+    int secs = *(int *)arg;
+    struct timespec ts = { (time_t)secs, 0 };
+    nanosleep(&ts, NULL);
+    if (s_global_monitor && s_global_monitor->running) {
+        atomic_store(&s_exit_code, 124);
+        monitor_stop_all();
+    }
+    return NULL;
 }
 
 void monitor_print_summary(const monitor_t *m)
