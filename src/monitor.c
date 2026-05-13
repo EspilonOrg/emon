@@ -191,6 +191,9 @@ int monitor_init(monitor_t *m, config_t *cfg)
             }
         }
 
+        strncpy(dev->family, family, sizeof(dev->family) - 1);
+        dev->family[sizeof(dev->family) - 1] = '\0';
+
         detector_init(&dev->detector);
         detector_load_builtin(&dev->detector, family);
         for (int j = 0; j < cfg->npattern_files; j++)
@@ -234,8 +237,9 @@ int monitor_run(monitor_t *m)
         ta->dev = dev;
 
         pthread_create(&dev->thread, NULL, device_thread, ta);
-        printf("%s[%s]%s online @ %d baud\n",
-               dev->color, dev->port.name, "\033[0m", dev->port.baud);
+        printf("%s[%s]%s online @ %d baud  %s[family: %s]%s\n",
+               dev->color, dev->port.name, "\033[0m", dev->port.baud,
+               "\033[2m", dev->family[0] ? dev->family : "esp32", "\033[0m");
     }
     printf("\n");
 

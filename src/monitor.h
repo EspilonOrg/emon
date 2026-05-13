@@ -21,6 +21,7 @@ typedef struct {
     int             crash_count;
     bool            running;
     pthread_t       thread;
+    char            family[32];   /* pattern family in use */
 } monitor_device_t;
 
 typedef struct {
