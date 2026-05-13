@@ -25,17 +25,22 @@ typedef struct {
     char    pattern_files[CONFIG_MAX_PATTERNS][256];
     int     npattern_files;
     char    builtin_family[32];   /* "esp32", "stm32", etc. */
+    bool    family_explicit;      /* true if --family was passed on CLI */
 
     /* Logging */
     char    logdir[256];
     bool    timestamps;
     bool    verbose;
     bool    color;
+    int     context_lines;   /* pre-event lines saved in events.log (0=off) */
 
     /* Behavior */
     bool       auto_reset;
     severity_t reset_threshold;
     int        reset_cooldown_ms;
+
+    /* Daemon mode */
+    bool       background;   /* --bg: double-fork and run in background */
 
     /* Interactive mode */
     bool       interactive;

@@ -67,8 +67,13 @@ int  serial_set_dtr(serial_port_t *p, bool level);
 /* List available serial ports. Returns count, fills `out` up to `max`. */
 int  serial_list(char out[][64], int max);
 
-/* Auto-detect connected boards by reading first bytes of boot output */
+/* Auto-detect connected boards by reading first bytes of boot output.
+ * Resets the device — use serial_detect_passive() on live firmware. */
 int  serial_detect_device(serial_port_t *p, char *family_out, size_t family_len);
+
+/* Passive variant: read 2s without reset. Safe on running firmware.
+ * Returns 0 and fills family_out on success, -1 if unrecognised. */
+int  serial_detect_passive(serial_port_t *p, char *family_out, size_t family_len);
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */
 const char *serial_state_str(port_state_t state);

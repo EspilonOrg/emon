@@ -186,6 +186,8 @@ int serial_reset(serial_port_t *p)
 
 /* ── Discovery ─────────────────────────────────────────────────────────── */
 
+static int match_family(const char *buf, char *family_out, size_t family_len);  /* fwd */
+
 int serial_list(char out[][64], int max)
 {
     struct sp_port **ports;
@@ -225,23 +227,52 @@ int serial_detect_device(serial_port_t *p, char *family_out, size_t family_len)
         }
     }
     boot[total] = '\0';
+    return match_family(boot, family_out, family_len);
+}
 
-    /* Identify by boot string signatures */
-    if (strstr(boot, "ESP-IDF") || strstr(boot, "esp32") ||
-        strstr(boot, "ESP32") || strstr(boot, "esp-idf")) {
+/* Match boot strings against known families. Returns 0 on match, -1 if unknown. */
+static int match_family(const char *buf, char *family_out, size_t family_len)
+{
+    if (strstr(buf, "ESPILON") || strstr(buf, "espm_sys") ||
+        strstr(buf, "espilon")) {
+        strncpy(family_out, "espilon", family_len - 1);
+    } else if (strstr(buf, "ESP-IDF") || strstr(buf, "esp32") ||
+               strstr(buf, "ESP32")   || strstr(buf, "esp-idf")) {
         strncpy(family_out, "esp32", family_len - 1);
-    } else if (strstr(boot, "STM32") || strstr(boot, "CubeMX")) {
+    } else if (strstr(buf, "STM32") || strstr(buf, "CubeMX")) {
         strncpy(family_out, "stm32", family_len - 1);
-    } else if (strstr(boot, "Arduino")) {
+    } else if (strstr(buf, "Arduino")) {
         strncpy(family_out, "arduino", family_len - 1);
-    } else if (strstr(boot, "Zephyr")) {
+    } else if (strstr(buf, "Zephyr")) {
         strncpy(family_out, "zephyr", family_len - 1);
     } else {
         strncpy(family_out, "unknown", family_len - 1);
+        family_out[family_len - 1] = '\0';
         return -1;
     }
     family_out[family_len - 1] = '\0';
     return 0;
+}
+
+int serial_detect_passive(serial_port_t *p, char *family_out, size_t family_len)
+{
+    uint8_t  buf[256];
+    char     boot[1024] = {0};
+    int      total      = 0;
+    uint64_t deadline   = now_ms() + 2000;   /* 2s passive window */
+
+    sp_flush(p->sp, SP_BUF_INPUT);            /* discard stale bytes */
+
+    while (now_ms() < deadline && total < (int)sizeof(boot) - 1) {
+        int n = serial_read(p, buf, sizeof(buf) - 1);
+        if (n > 0) {
+            memcpy(boot + total, buf, (size_t)n);
+            total += n;
+        }
+    }
+    boot[total] = '\0';
+
+    return match_family(boot, family_out, family_len);
 }
 
 /* ── Helpers ───────────────────────────────────────────────────────────── */

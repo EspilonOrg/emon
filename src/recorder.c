@@ -94,13 +94,18 @@ void recorder_save_event(recorder_t *r, const det_event_t *ev)
             ev->rule ? ev->rule->name : "UNKNOWN",
             severity_str(ev->severity));
 
-    /* Write pre-event context */
-    fprintf(r->crashfile, "── context (last %d lines) ──\n",
-            r->ctx_count);
-    int start = r->ctx_head - r->ctx_count;
-    for (int i = 0; i < r->ctx_count; i++) {
-        int slot = (start + i) % RECORDER_CONTEXT_LINES;
-        fprintf(r->crashfile, "  %s\n", r->ctx[slot]);
+    /* Write pre-event context — respect cfg->context_lines */
+    int nctx = r->ctx_count;
+    if (r->cfg->context_lines > 0 && nctx > r->cfg->context_lines)
+        nctx = r->cfg->context_lines;
+
+    if (nctx > 0) {
+        fprintf(r->crashfile, "── context (last %d lines) ──\n", nctx);
+        int start = r->ctx_head - nctx;
+        for (int i = 0; i < nctx; i++) {
+            int slot = (start + i) % RECORDER_CONTEXT_LINES;
+            fprintf(r->crashfile, "  %s\n", r->ctx[slot]);
+        }
     }
 
     /* Write the triggering line */

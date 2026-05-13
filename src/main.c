@@ -8,6 +8,7 @@
 #include "serial.h"
 #include "interactive.h"
 #include "display.h"
+#include "daemon.h"
 
 #define VERSION "0.1.0"
 
@@ -38,6 +39,8 @@ static void usage(const char *prog)
         "  --logdir <dir>        Log directory (default: logs/)\n"
         "  --name <port>=<name>  Friendly name for a port\n"
         "  --auto-reset          Reset device on CRITICAL event\n"
+        "  --context <N>         Pre-event context lines in events.log (default: 10, 0=off)\n"
+        "  --bg                  Run as background daemon (PID file in logdir/)\n"
         "  -v, --verbose         Print all lines, not just events\n"
         "  --no-color            Disable ANSI colors\n"
         "  --no-timestamps       Disable timestamps\n"
@@ -45,18 +48,24 @@ static void usage(const char *prog)
         "  --list                List available serial ports\n"
         "  --version             Show version\n"
         "\n"
+        "\n"
+        "Sub-commands:\n"
+        "  stop                  Stop a running background daemon\n"
+        "  status                Show daemon status\n"
+        "\n"
         "Examples:\n"
-        "  %s ttyACM0 ttyUSB0 ttyUSB1\n"
-        "  %s --family esp32 --auto-reset ttyACM0\n"
-        "  %s --baud 9600 --name ttyUSB0=STM32 ttyUSB0\n",
-        prog, prog, prog, prog);
+        "  espilon-monitor ttyACM0 ttyUSB0 ttyUSB1\n"
+        "  espilon-monitor --family espilon --bg --logdir /opt/espilon-monitor/logs /dev/ttyUSB1\n"
+        "  espilon-monitor --wait-for HANDSHAKE_OK --timeout 30 --json-events /dev/ttyUSB0\n"
+        "  espilon-monitor stop\n",
+        prog);
 }
 
 int main(int argc, char *argv[])
 {
     if (argc < 2) { usage(argv[0]); return 1; }
 
-    /* Quick flags before full parse */
+    /* Quick flags + sub-commands before full parse */
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--version") == 0) {
             printf("espilon-monitor %s\n", VERSION);
@@ -72,6 +81,17 @@ int main(int argc, char *argv[])
         }
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             usage(argv[0]); return 0;
+        }
+        /* Sub-commands: stop / status */
+        if (strcmp(argv[i], "stop") == 0) {
+            config_t cfg; config_defaults(&cfg);
+            config_parse_args(&cfg, argc, argv);
+            return daemon_stop(cfg.logdir);
+        }
+        if (strcmp(argv[i], "status") == 0) {
+            config_t cfg; config_defaults(&cfg);
+            config_parse_args(&cfg, argc, argv);
+            return daemon_status(cfg.logdir);
         }
     }
 
@@ -98,6 +118,19 @@ int main(int argc, char *argv[])
 
     signal(SIGINT,  on_signal);
     signal(SIGTERM, on_signal);
+
+    /* Daemon mode: double-fork. Parent returns 0 and exits. */
+    if (cfg.background) {
+        int r = daemonize(cfg.logdir);
+        if (r == 0) {
+            /* Parent process: print status and exit */
+            printf("espilon-monitor: started in background (logs → %s/)\n",
+                   cfg.logdir);
+            return 0;
+        }
+        /* r == -2: daemon process, fall through to monitor_run() */
+        /* r == -1: error — fall through anyway, run in foreground */
+    }
 
     if (monitor_init(&g_monitor, &cfg) != 0) {
         fprintf(stderr, "monitor_init failed\n");

@@ -18,6 +18,7 @@ void config_defaults(config_t *cfg)
     cfg->interactive      = false;
     cfg->input_port[0]    = '\0';
     strncpy(cfg->logdir, "logs", sizeof(cfg->logdir) - 1);
+    cfg->context_lines    = 10;
     strncpy(cfg->builtin_family, "esp32", sizeof(cfg->builtin_family) - 1);
 }
 
@@ -67,14 +68,19 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             cfg->baud = atoi(argv[++i]);
         else if (strcmp(argv[i], "--logdir") == 0 && i+1 < argc)
             strncpy(cfg->logdir, argv[++i], sizeof(cfg->logdir)-1);
-        else if (strcmp(argv[i], "--family") == 0 && i+1 < argc)
+        else if (strcmp(argv[i], "--family") == 0 && i+1 < argc) {
             strncpy(cfg->builtin_family, argv[++i], sizeof(cfg->builtin_family)-1);
+            cfg->family_explicit = true;
+        }
         else if (strcmp(argv[i], "--patterns") == 0 && i+1 < argc) {
             if (cfg->npattern_files < CONFIG_MAX_PATTERNS)
                 strncpy(cfg->pattern_files[cfg->npattern_files++],
                         argv[++i], 255);
         }
         else if (strcmp(argv[i], "--auto-reset") == 0) cfg->auto_reset = true;
+        else if (strcmp(argv[i], "--bg") == 0) cfg->background = true;
+        else if (strcmp(argv[i], "--context") == 0 && i+1 < argc)
+            cfg->context_lines = atoi(argv[++i]);
         else if (strcmp(argv[i], "--timeout") == 0 && i+1 < argc)
             cfg->timeout_sec = atoi(argv[++i]);
         else if (strcmp(argv[i], "--json-events") == 0)

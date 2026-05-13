@@ -114,7 +114,8 @@ int monitor_init(monitor_t *m, config_t *cfg)
     m->start_ms = now_ms();
 
     recorder_cfg_t rcfg = {
-        .context_lines = RECORDER_CONTEXT_LINES,
+        .context_lines = cfg->context_lines > 0 ? cfg->context_lines
+                                                 : RECORDER_CONTEXT_LINES,
         .max_bytes     = RECORDER_MAX_LOGSIZE,
     };
     strncpy(rcfg.logdir, cfg->logdir, sizeof(rcfg.logdir) - 1);
@@ -144,11 +145,6 @@ int monitor_init(monitor_t *m, config_t *cfg)
         dev->port.baud           = cfg->baud;
         dev->port.auto_reconnect = true;
 
-        detector_init(&dev->detector);
-        detector_load_builtin(&dev->detector, cfg->builtin_family);
-        for (int j = 0; j < cfg->npattern_files; j++)
-            detector_load_file(&dev->detector, cfg->pattern_files[j]);
-
         recorder_init(&dev->recorder, dev->port.name, &rcfg);
         resetter_init(&dev->resetter, &dev->port,
                       cfg->reset_threshold, cfg->reset_cooldown_ms);
@@ -156,8 +152,25 @@ int monitor_init(monitor_t *m, config_t *cfg)
         dev->color   = display_device_color(i);
         dev->running = true;
 
-        if (serial_open(&dev->port) != 0)
+        if (serial_open(&dev->port) != 0) {
             fprintf(stderr, "[monitor] failed to open %s\n", dev->port.path);
+            m->ndevices++;
+            continue;
+        }
+
+        /* Auto-detect chip family if --family was not explicitly given */
+        char detected[32];
+        const char *family = cfg->builtin_family;
+        if (!cfg->family_explicit &&
+            serial_detect_passive(&dev->port, detected, sizeof(detected)) == 0) {
+            family = detected;
+            fprintf(stderr, "[%s] auto-detected: %s\n", dev->port.name, family);
+        }
+
+        detector_init(&dev->detector);
+        detector_load_builtin(&dev->detector, family);
+        for (int j = 0; j < cfg->npattern_files; j++)
+            detector_load_file(&dev->detector, cfg->pattern_files[j]);
 
         m->ndevices++;
     }
