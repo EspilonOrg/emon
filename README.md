@@ -2,7 +2,7 @@
 
 **Universal serial monitor for embedded devices.**
 
-Monitor any number of serial devices simultaneously — production bots, development boards, fuzzing targets, test rigs — from a single terminal.
+Monitor any number of serial devices simultaneously: production bots, development boards, fuzzing targets, test rigs, from a single terminal.
 
 ---
 
@@ -10,7 +10,7 @@ Monitor any number of serial devices simultaneously — production bots, develop
 
 You have boards. They output things on serial. You need to know what's happening.
 
-With one board and one terminal, `screen` works fine. With five boards running 24/7, it breaks down — missed events, no logging, no alerting, no context when something goes wrong.
+With one board and one terminal, `screen` works fine. With five boards running 24/7, it breaks down: missed events, no logging, no alerting, no context when something goes wrong.
 
 `espilon-monitor` gives you a unified view of all your devices, with the intelligence to tell you what matters.
 
@@ -19,26 +19,29 @@ With one board and one terminal, `screen` works fine. With five boards running 2
 ## What it does
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  espilon-monitor — 4 devices online                        │
-│                                                             │
-│  [bot-alpha  ] Task completed: scan_192.168.1.0/24         │
-│  [bot-beta   ] Waiting for command...                       │
-│  [dev-board  ] !! Guru Meditation Error  ← CRITICAL        │
-│  [target-ble ] Connecting to aa:bb:cc...                    │
-│                                                             │
-│  Uptime: 12:04:33  |  Events: 1,847  |  Alerts: 1         │
-└─────────────────────────────────────────────────────────────┘
+espilon-monitor  4 ports
+-----------------------------------------
+
+[bot-alpha ] online @ 115200 baud  [family: espilon]
+[bot-beta  ] online @ 115200 baud  [family: espilon]
+[dev-board ] online @ 115200 baud  [family: esp32]
+[target-ble] online @ 115200 baud  [family: esp32]
+
+12:04:31.042 [bot-alpha ] Task completed: scan_192.168.1.0/24
+12:04:31.198 [bot-beta  ] Waiting for command...
+12:04:33.571 [dev-board ] [CRITICAL] Guru Meditation Error: Core 0 panic'd
+12:04:33.571 [dev-board ]   !! guru_meditation -- dev-board
+12:04:34.802 [target-ble] Connecting to aa:bb:cc:dd:ee:ff...
 ```
 
-- **N ports, one view** — read from any number of serial devices at the same time
-- **Pattern detection** — define what "interesting" looks like per device or globally
-- **Severity levels** — CRITICAL, HIGH, WARN, INFO — filter the noise
-- **Full logging** — every byte, timestamped, per device
-- **Event context** — when something triggers an alert, capture what happened around it
-- **Auto-reset** — send a reset signal (RTS/DTR) to a device on a specific event
-- **Input injection** — send commands or payloads to any device from the monitor
-- **Extensible** — add custom behavior via Python plugins (webhooks, triggers, parsers)
+- **N ports, one view**: read from any number of serial devices at the same time
+- **Pattern detection**: define what "interesting" looks like per device or globally
+- **Severity levels**: CRITICAL, HIGH, WARN, INFO, filter the noise
+- **Full logging**: every byte, timestamped, per device
+- **Event context**: when something triggers an alert, capture what happened around it
+- **Auto-reset**: send a reset signal (RTS/DTR) to a device on a specific event
+- **Input injection**: send commands or payloads to any device from the monitor
+- **Extensible**: add custom behavior via Python plugins (webhooks, triggers, parsers)
 
 ---
 
@@ -92,14 +95,14 @@ espilon-monitor/
 │   ├── arduino.pat
 │   └── freertos.pat
 │
-└── plugins/             # Python — custom handlers, integrations
+└── plugins/             # Python: custom handlers, integrations
     ├── webhooks.py
     └── replay.py
 ```
 
-**C core** — one thread per port, minimal overhead, runs forever without surprises.
+**C core**: one thread per port, minimal overhead, runs forever without surprises.
 
-**Pattern files** — plain text rules, no recompile needed:
+**Pattern files**: plain text rules, no recompile needed:
 ```
 # patterns/esp32.pat
 CRITICAL  Guru Meditation Error
@@ -109,7 +112,7 @@ WARN      rst:0x
 INFO      I \([0-9]+\)
 ```
 
-**Python plugins** — bolt on behavior without touching the core:
+**Python plugins**: bolt on behavior without touching the core:
 ```python
 # plugins/webhooks.py
 def on_event(device, severity, line):
@@ -122,7 +125,7 @@ def on_event(device, severity, line):
 ## Quick start
 
 ```bash
-# Build (libserialport vendored — no system deps needed)
+# Build (libserialport vendored, no system deps needed)
 make
 
 # Monitor 3 devices at once
@@ -134,10 +137,10 @@ make
 # Explicit family, background daemon
 ./espilon-monitor --family espilon --bg --logdir /opt/logs /dev/ttyUSB1
 
-# Interactive — send input to device (Ctrl+A X to quit, Ctrl+A [ for scrollback)
+# Interactive: send input to device (Ctrl+A X to quit, Ctrl+A [ for scrollback)
 ./espilon-monitor -i /dev/ttyUSB0
 
-# CI/test runner — wait for pattern, exit 0 on success / 124 on timeout
+# CI/test runner: wait for pattern, exit 0 on success / 124 on timeout
 ./espilon-monitor --wait-for HANDSHAKE_OK --timeout 30 /dev/ttyUSB0
 
 # Machine-readable JSON event stream
@@ -162,10 +165,10 @@ make
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0, see [LICENSE](LICENSE).
 
 ---
 
 ## Author
 
-[Eun0us](https://github.com/Eun0us) — [Espilon](https://github.com/espilon)
+[Eun0us](https://github.com/Eun0us) / [Espilon](https://github.com/espilon)
