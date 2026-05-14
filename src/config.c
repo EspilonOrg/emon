@@ -85,6 +85,8 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             cfg->timeout_sec = atoi(argv[++i]);
         else if (strcmp(argv[i], "--json-events") == 0)
             cfg->json_events = true;
+        else if (strcmp(argv[i], "--tui") == 0)
+            cfg->tui = true;
         else if ((strcmp(argv[i], "--exit-on") == 0 ||
                   strcmp(argv[i], "--wait-for") == 0) && i+1 < argc) {
             int is_wait = (strcmp(argv[i], "--wait-for") == 0);

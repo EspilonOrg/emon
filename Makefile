@@ -22,7 +22,8 @@ SRCS    = src/main.c \
           src/config.c \
           src/interactive.c \
           src/daemon.c \
-          src/scrollback.c
+          src/scrollback.c \
+          src/tui.c
 OBJS    = $(SRCS:.c=.o)
 
 .PHONY: all clean install check test

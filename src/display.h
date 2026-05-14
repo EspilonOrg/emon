@@ -15,11 +15,11 @@ typedef struct {
 void display_init(const display_cfg_t *cfg);
 
 /* Print a raw line (no event matched) */
-void display_line(const char *device, const char *color,
+void display_line(int dev_idx, const char *device, const char *color,
                   const char *line);
 
 /* Print a matched event with severity badge */
-void display_event(const det_event_t *ev, const char *device_color);
+void display_event(int dev_idx, const det_event_t *ev, const char *device_color);
 
 /* Print stats summary */
 void display_stats(int ndevices, const char **names,

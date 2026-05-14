@@ -40,6 +40,7 @@ static void usage(const char *prog)
         "  --name <port>=<name>  Friendly name for a port\n"
         "  --auto-reset          Reset device on CRITICAL event\n"
         "  --context <N>         Pre-event context lines in events.log (default: 10, 0=off)\n"
+        "  --tui                 Split-pane TUI: one pane per device (Tab=next  Ctrl+A[=scroll)\n"
         "  --bg                  Run as background daemon (PID file in logdir/)\n"
         "  -v, --verbose         Print all lines, not just events\n"
         "  --no-color            Disable ANSI colors\n"
@@ -137,8 +138,10 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (cfg.interactive && interactive_init() != 0)
-        cfg.interactive = false;   /* fallback: observe-only if tty unavailable */
+    if ((cfg.interactive || cfg.tui) && interactive_init() != 0) {
+        cfg.interactive = false;
+        cfg.tui         = false;   /* fallback: non-interactive if not a tty */
+    }
 
     monitor_run(&g_monitor);   /* blocks */
 

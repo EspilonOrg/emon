@@ -1,6 +1,7 @@
 #include "interactive.h"
 #include "serial.h"
 #include "scrollback.h"
+#include "tui.h"
 
 #define RESET  "\033[0m"
 #define BOLD   "\033[1m"
@@ -76,6 +77,7 @@ int interactive_init(void)
 typedef struct {
     serial_port_t *port;
     volatile int   running;
+    bool           forward;   /* true = forward non-TUI keys to device */
 } stdin_arg_t;
 
 static pthread_t  s_thread;
@@ -108,6 +110,20 @@ static void *stdin_thread(void *arg)
         for (int i = 0; i < n && a->running; i++) {
             uint8_t c = buf[i];
 
+            /* ── TUI key delegation (Ctrl+A combos + ESC sequences) ── */
+            if (tui_is_active()) {
+                if (escape_pending) {
+                    /* Pass Ctrl+A combo to TUI first */
+                    if (tui_handle_key(c, true)) {
+                        escape_pending = 0;
+                        continue;
+                    }
+                } else {
+                    if (tui_handle_key(c, false))
+                        continue;
+                }
+            }
+
             if (escape_pending) {
                 escape_pending = 0;
                 switch (c) {
@@ -119,12 +135,14 @@ static void *stdin_thread(void *arg)
 
                 case ESCAPE_KEY:
                     /* Ctrl+A Ctrl+A → send literal 0x01 to device */
-                    serial_write(a->port, &c, 1);
+                    if (a->forward && a->port)
+                        serial_write(a->port, &c, 1);
                     break;
 
                 case '[':
-                    /* Ctrl+A [ → enter scrollback mode */
-                    scrollback_enter();
+                    /* Ctrl+A [ → scrollback (non-TUI mode only) */
+                    if (!tui_is_active())
+                        scrollback_enter();
                     break;
 
                 case 'h': case 'H': case '?':
@@ -132,7 +150,6 @@ static void *stdin_thread(void *arg)
                     break;
 
                 default:
-                    /* Unknown escape — ignore silently */
                     break;
                 }
                 continue;
@@ -144,19 +161,21 @@ static void *stdin_thread(void *arg)
             }
 
             /* Forward raw byte to device */
-            serial_write(a->port, &c, 1);
+            if (a->forward && a->port)
+                serial_write(a->port, &c, 1);
         }
     }
 
     return NULL;
 }
 
-int interactive_start(serial_port_t *port)
+int interactive_start(serial_port_t *port, bool forward)
 {
     if (!s_is_tty) return -1;
 
     s_arg.port    = port;
     s_arg.running = 1;
+    s_arg.forward = forward;
 
     if (pthread_create(&s_thread, NULL, stdin_thread, &s_arg) != 0) {
         perror("[interactive] pthread_create");

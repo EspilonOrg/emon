@@ -53,6 +53,9 @@ typedef struct {
 
     /* Machine-readable output */
     bool        json_events;     /* emit NDJSON to stdout for each event */
+
+    /* TUI split-pane mode */
+    bool        tui;             /* --tui: one pane per device */
 } config_t;
 
 void config_defaults(config_t *cfg);

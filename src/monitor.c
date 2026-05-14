@@ -2,11 +2,13 @@
 #include "interactive.h"
 #include "display.h"
 #include "scrollback.h"
+#include "tui.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <time.h>
+#include <signal.h>
 #include <stdatomic.h>
 
 /* Thread argument — carries both device and parent monitor */
@@ -74,7 +76,7 @@ static void *device_thread(void *arg)
                     pthread_mutex_lock(&mon->print_lock);
                     if (hit) {
                         dev->crash_count++;
-                        display_event(&ev, dev->color);
+                        display_event(dev->dev_idx, &ev, dev->color);
                         if (mon->cfg->json_events)
                             display_event_json(&ev);
                         recorder_save_event(&dev->recorder, &ev);
@@ -92,7 +94,7 @@ static void *device_thread(void *arg)
                             }
                         }
                     } else {
-                        display_line(dev->port.name, dev->color, linebuf);
+                        display_line(dev->dev_idx, dev->port.name, dev->color, linebuf);
                     }
                     pthread_mutex_unlock(&mon->print_lock);
                 }
@@ -152,6 +154,7 @@ int monitor_init(monitor_t *m, config_t *cfg)
 
         dev->color   = display_device_color(i);
         dev->running = true;
+        dev->dev_idx = m->ndevices;
 
         /* ── Auto-detect family (priority chain) ──────────────────────
          * 1. --family explicit → skip all detection
@@ -218,6 +221,12 @@ void monitor_free(monitor_t *m)
     pthread_mutex_destroy(&m->print_lock);
 }
 
+static void sigwinch_handler(int sig)
+{
+    (void)sig;
+    tui_signal_resize();
+}
+
 int monitor_run(monitor_t *m)
 {
     if (!m) return -1;
@@ -225,7 +234,19 @@ int monitor_run(monitor_t *m)
     s_global_monitor = m;
 
     scrollback_init();
-    display_banner(m->ndevices);
+
+    if (m->cfg->tui) {
+        const char *names[MONITOR_MAX_DEVICES];
+        const char *colors[MONITOR_MAX_DEVICES];
+        for (int i = 0; i < m->ndevices; i++) {
+            names[i]  = m->devices[i].port.name;
+            colors[i] = m->devices[i].color;
+        }
+        tui_init(m->ndevices, names, colors);
+        signal(SIGWINCH, sigwinch_handler);
+    } else {
+        display_banner(m->ndevices);
+    }
 
     for (int i = 0; i < m->ndevices; i++) {
         monitor_device_t *dev = &m->devices[i];
@@ -237,11 +258,12 @@ int monitor_run(monitor_t *m)
         ta->dev = dev;
 
         pthread_create(&dev->thread, NULL, device_thread, ta);
-        printf("%s[%s]%s online @ %d baud  %s[family: %s]%s\n",
-               dev->color, dev->port.name, "\033[0m", dev->port.baud,
-               "\033[2m", dev->family[0] ? dev->family : "esp32", "\033[0m");
+        if (!m->cfg->tui)
+            printf("%s[%s]%s online @ %d baud  %s[family: %s]%s\n",
+                   dev->color, dev->port.name, "\033[0m", dev->port.baud,
+                   "\033[2m", dev->family[0] ? dev->family : "esp32", "\033[0m");
     }
-    printf("\n");
+    if (!m->cfg->tui) printf("\n");
 
     /* Timeout thread */
     pthread_t timeout_tid = 0;
@@ -250,17 +272,17 @@ int monitor_run(monitor_t *m)
                        &m->cfg->timeout_sec);
     }
 
-    /* Interactive mode — start stdin thread targeting the right port */
-    if (m->cfg->interactive) {
+    /* Interactive / TUI: start stdin thread.
+     * TUI always needs it for keyboard navigation.
+     * forward_to_device = true only when -i is also set. */
+    if (m->cfg->interactive || m->cfg->tui) {
         monitor_device_t *target = NULL;
         if (m->cfg->input_port[0]) {
-            /* Find the named/pathed port */
             for (int i = 0; i < m->ndevices; i++) {
                 const char *p = m->devices[i].port.path;
                 const char *n = m->devices[i].port.name;
                 if (strcmp(p, m->cfg->input_port) == 0 ||
                     strcmp(n, m->cfg->input_port) == 0 ||
-                    /* bare name like "ttyUSB0" */
                     (strrchr(p, '/') &&
                      strcmp(strrchr(p, '/') + 1, m->cfg->input_port) == 0)) {
                     target = &m->devices[i];
@@ -269,17 +291,20 @@ int monitor_run(monitor_t *m)
             }
         }
         if (!target && m->ndevices > 0)
-            target = &m->devices[0];   /* default: first port */
+            target = &m->devices[0];
 
         if (target)
-            interactive_start(&target->port);
+            interactive_start(&target->port, m->cfg->interactive);
     }
 
     for (int i = 0; i < m->ndevices; i++)
         pthread_join(m->devices[i].thread, NULL);
 
-    if (m->cfg->interactive)
+    if (m->cfg->interactive || m->cfg->tui)
         interactive_stop();
+
+    if (m->cfg->tui)
+        tui_destroy();
 
     if (timeout_tid) {
         /* Cancel the timeout thread if we exited before it fired */

@@ -1,5 +1,6 @@
 #include "display.h"
 #include "scrollback.h"
+#include "tui.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -55,7 +56,7 @@ void display_init(const display_cfg_t *cfg)
     if (cfg) g_cfg = *cfg;
 }
 
-void display_line(const char *device, const char *color, const char *line)
+void display_line(int dev_idx, const char *device, const char *color, const char *line)
 {
     if (!g_cfg.verbose) return;
 
@@ -65,6 +66,10 @@ void display_line(const char *device, const char *color, const char *line)
              g_cfg.color ? color : "", w, device,
              g_cfg.color ? RESET : "", line);
 
+    if (tui_is_active()) {
+        tui_push_line(dev_idx, buf);
+        return;
+    }
     if (!scrollback_is_active()) {
         print_ts();
         printf("%s\n", buf);
@@ -72,7 +77,7 @@ void display_line(const char *device, const char *color, const char *line)
     scrollback_push(buf);
 }
 
-void display_event(const det_event_t *ev, const char *device_color)
+void display_event(int dev_idx, const det_event_t *ev, const char *device_color)
 {
     int w = g_cfg.name_width > 0 ? g_cfg.name_width : (int)strlen(ev->device);
     char buf[SCROLLBACK_WIDTH];
@@ -83,11 +88,15 @@ void display_event(const det_event_t *ev, const char *device_color)
              g_cfg.color ? sev_badge(ev->severity) : severity_str(ev->severity),
              ev->line);
 
+    if (tui_is_active()) {
+        tui_push_event(dev_idx, ev->severity, buf);
+        return;
+    }
     if (!scrollback_is_active()) {
         print_ts();
         printf("%s\n", buf);
         if (ev->severity >= SEV_CRITICAL)
-            printf("%s  ⚠  %s — %s%s\n",
+            printf("%s  !!  %s -- %s%s\n",
                    g_cfg.color ? "\033[1;91m" : "",
                    ev->rule ? ev->rule->name : "?",
                    ev->device,

@@ -22,6 +22,7 @@ typedef struct {
     bool            running;
     pthread_t       thread;
     char            family[32];   /* pattern family in use */
+    int             dev_idx;      /* index in m->devices[] */
 } monitor_device_t;
 
 typedef struct {

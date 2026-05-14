@@ -21,8 +21,10 @@
 int  interactive_init(void);
 
 /* Start the stdin-forwarding thread targeting `port`.
+ * forward=true: typing is forwarded to device (requires -i).
+ * forward=false: TUI navigation only, no serial forwarding.
  * interactive_init() must have been called first. */
-int  interactive_start(serial_port_t *port);
+int  interactive_start(serial_port_t *port, bool forward);
 
 /* Signal the stdin thread to stop (non-blocking). */
 void interactive_stop(void);
