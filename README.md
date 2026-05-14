@@ -122,20 +122,29 @@ def on_event(device, severity, line):
 ## Quick start
 
 ```bash
-# Build
+# Build (libserialport vendored — no system deps needed)
 make
 
-# Monitor 3 devices
-./espilon-monitor ttyACM0 ttyUSB0 ttyUSB1
+# Monitor 3 devices at once
+./espilon-monitor /dev/ttyACM0 /dev/ttyUSB0 /dev/ttyUSB1
 
-# With patterns and logging
-./espilon-monitor ttyACM0 --patterns esp32 --logdir ./logs
+# Auto-detect family, log to disk
+./espilon-monitor --logdir ./logs /dev/ttyUSB0
 
-# Auto-reset a device on CRITICAL event
-./espilon-monitor ttyACM0 --auto-reset CRITICAL
+# Explicit family, background daemon
+./espilon-monitor --family espilon --bg --logdir /opt/logs /dev/ttyUSB1
 
-# Send a command to a specific device
-./espilon-monitor ttyUSB0 --send "start_scan"
+# Interactive — send input to device (Ctrl+A X to quit, Ctrl+A [ for scrollback)
+./espilon-monitor -i /dev/ttyUSB0
+
+# CI/test runner — wait for pattern, exit 0 on success / 124 on timeout
+./espilon-monitor --wait-for HANDSHAKE_OK --timeout 30 /dev/ttyUSB0
+
+# Machine-readable JSON event stream
+./espilon-monitor --json-events --exit-on CRASH_DETECTED /dev/ttyUSB0
+
+# Stop a running background daemon
+./espilon-monitor stop
 ```
 
 ---
@@ -144,17 +153,16 @@ make
 
 | | Purpose | Required |
 |--|---------|---------|
-| `libserialport` | Cross-platform serial I/O | Yes |
+| `libserialport` | Cross-platform serial I/O | Vendored (no install needed) |
 | `pthreads` | Per-port threads | Built-in |
 | `regex.h` | Pattern matching | Built-in |
-| `ncurses` | TUI (optional) | No |
-| Python 3.8+ | Plugin system | No |
+| Python 3.8+ | Plugin system | Optional |
 
 ---
 
-## Status
+## License
 
-In development. Core serial engine first.
+Apache 2.0 — see [LICENSE](LICENSE).
 
 ---
 
