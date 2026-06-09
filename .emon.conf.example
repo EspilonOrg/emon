@@ -1,4 +1,4 @@
-# emon configuration file — reference with all supported keys
+# emon configuration file - reference with all supported keys
 #
 # Load with:  emon --config .emon.conf /dev/ttyUSB0
 # Or copy to: ~/.config/emon/emon.conf and load explicitly each time.
@@ -21,7 +21,7 @@ flow_control = none
 # VID/PID or passive serial read. Leave empty to disable.
 auto_patterns = patterns/
 
-# Extra pattern files to load (additive — one line per file, repeat as needed)
+# Extra pattern files to load (additive - one line per file, repeat as needed)
 # pattern = patterns/esp32.pat
 # pattern = patterns/custom.pat
 
@@ -69,7 +69,7 @@ background = false
 # ── Event hooks ─────────────────────────────────────────────────────────────
 
 # Call a Python 3 script on every matched event. JSON payload on stdin.
-# Fire-and-forget (double-fork) — the monitor is never blocked.
+# Fire-and-forget (double-fork) - the monitor is never blocked.
 # Up to 8 scripts; repeat this key for each one.
 # See docs/hooks.md for the payload schema and example scripts.
 #

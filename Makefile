@@ -1,5 +1,6 @@
 CC      = gcc
 VERSION ?= 0.2.0
+PREFIX  ?= /usr/local
 CFLAGS  = -Ivendor/include -Isrc -Wall -Wextra -std=c11 \
           -D_POSIX_C_SOURCE=200809L \
           -D_XOPEN_SOURCE=600 \
@@ -50,15 +51,16 @@ clean:
 	rm -f $(OBJS) $(BIN) $(TEST_BIN)
 
 install: $(BIN)
-	install -m 755 $(BIN) /usr/local/bin/
+	install -d $(PREFIX)/bin/
+	install -m 755 $(BIN) $(PREFIX)/bin/
 	@if [ -f docs/emon.1 ]; then \
-	    install -d /usr/local/share/man/man1/; \
-	    install -m 644 docs/emon.1 /usr/local/share/man/man1/; \
+	    install -d $(PREFIX)/share/man/man1/; \
+	    install -m 644 docs/emon.1 $(PREFIX)/share/man/man1/; \
 	fi
 
 uninstall:
-	rm -f /usr/local/bin/$(BIN)
-	rm -f /usr/local/share/man/man1/emon.1
+	rm -f $(PREFIX)/bin/$(BIN)
+	rm -f $(PREFIX)/share/man/man1/emon.1
 
 check:
 	@command -v pkg-config >/dev/null && pkg-config --exists libserialport \

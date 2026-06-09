@@ -7,7 +7,7 @@
 [![CI](https://github.com/Eun0us/espilon-monitor/actions/workflows/ci.yml/badge.svg)](https://github.com/Eun0us/espilon-monitor/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-Monitor any number of serial devices simultaneously — production boards, dev kits, test rigs — from a single terminal, with pattern detection, structured logging, and CI integration built in.
+Monitor any number of serial devices simultaneously - production boards, dev kits, test rigs - from a single terminal, with pattern detection, structured logging, and CI integration built in.
 
 ---
 
@@ -39,16 +39,16 @@ emon  4 ports
 12:04:34.802 [stm32-board] [HIGH] HardFault_Handler called
 ```
 
-- **N ports, one view** — read from any number of serial devices at the same time
-- **Pattern detection** — define what "interesting" looks like per device or globally
-- **Severity levels** — CRITICAL / HIGH / WARN / INFO, filter the noise
-- **Full logging** — every byte, timestamped, per device, with rolling rotation
-- **Event context** — capture the lines before and after a trigger
-- **Auto-reset** — assert RTS/DTR on a CRITICAL event automatically
-- **Interactive mode** — send commands to any device from the monitor (`-i`)
-- **Hex dump** — inspect raw binary streams (`--hex`)
-- **CI/test runner** — `--wait-for BOOT_OK --timeout 30` exits with the right code
-- **Event hooks** — call a Python script on every matched event (`--on-event`)
+- **N ports, one view** - read from any number of serial devices at the same time
+- **Pattern detection** - define what "interesting" looks like per device or globally
+- **Severity levels** - CRITICAL / HIGH / WARN / INFO, filter the noise
+- **Full logging** - every byte, timestamped, per device, with rolling rotation
+- **Event context** - capture the lines before and after a trigger
+- **Auto-reset** - assert RTS/DTR on a CRITICAL event automatically
+- **Interactive mode** - send commands to any device from the monitor (`-i`)
+- **Hex dump** - inspect raw binary streams (`--hex`)
+- **CI/test runner** - `--wait-for BOOT_OK --timeout 30` exits with the right code
+- **Event hooks** - call a Python script on every matched event (`--on-event`)
 
 ---
 
@@ -90,8 +90,9 @@ Anything with a UART serial output. Built-in pattern families:
 # Build (requires gcc + make)
 make
 
-# Optional: install system-wide
-sudo make install      # → /usr/local/bin/espilon-monitor + man page
+# Install - no sudo needed if PREFIX is in your PATH
+PREFIX=~/.local make install      # → ~/.local/bin/espilon-monitor
+sudo make install                 # → /usr/local/bin/  (system-wide)
 
 # Or just symlink
 ln -s $PWD/espilon-monitor ~/.local/bin/emon
@@ -140,7 +141,7 @@ emon --json-events --exit-on GURU_MEDITATION /dev/ttyUSB0
 
 ## Pattern files
 
-Pattern files are plain text — no recompile needed:
+Pattern files are plain text - no recompile needed:
 
 ```
 # patterns/esp32.pat
@@ -153,9 +154,9 @@ INFO      BOOT              I \([0-9]+\) boot:
 
 Format: `SEVERITY  NAME  REGEX`
 
-- `SEVERITY` — `CRITICAL`, `HIGH`, `WARN`, or `INFO`
-- `NAME` — short uppercase identifier (used with `--exit-on` / `--wait-for`)
-- `REGEX` — POSIX extended regex matched against each output line
+- `SEVERITY` - `CRITICAL`, `HIGH`, `WARN`, or `INFO`
+- `NAME` - short uppercase identifier (used with `--exit-on` / `--wait-for`)
+- `REGEX` - POSIX extended regex matched against each output line
 
 Load with `--patterns mydevice.pat`. Use `--auto-patterns patterns/` to auto-detect the family from USB VID/PID and load the matching file automatically.
 
@@ -182,7 +183,7 @@ json_events   = false
 tui           = false
 hex           = false
 
-# Additive — one per line
+# Additive - one per line
 pattern       = patterns/esp32.pat
 pattern       = patterns/custom.pat
 
@@ -216,7 +217,7 @@ if ev["severity"] == "CRITICAL":
     print(f"[ALERT] {ev['device']}: {ev['rule']}")
 ```
 
-Up to 8 hooks per session. Each runs as a fire-and-forget subprocess — the monitor is never blocked. See [docs/hooks.md](docs/hooks.md) for the full payload spec and more examples (ntfy, Slack, Discord).
+Up to 8 hooks per session. Each runs as a fire-and-forget subprocess - the monitor is never blocked. See [docs/hooks.md](docs/hooks.md) for the full payload spec and more examples (ntfy, Slack, Discord).
 
 ---
 
@@ -229,7 +230,7 @@ src/
 │   ├── config.c/.h         # CLI + config file parsing
 │   └── daemon.c/.h         # Background daemon (double-fork, PID file)
 ├── monitor/
-│   ├── monitor.c/.h        # Main loop — one pthread per port
+│   ├── monitor.c/.h        # Main loop - one pthread per port
 │   ├── detector.c/.h       # Pattern matching (POSIX regex, O(1) dedup)
 │   └── recorder.c/.h       # Per-device logging + event context + log rotation
 ├── serial/
@@ -249,7 +250,7 @@ tests/                       # Detector unit tests + HW test harness
 ```
 
 **C core**: one thread per port, minimal overhead. Runs forever without surprises.
-**libserialport**: vendored static build — no system dependency.
+**libserialport**: vendored static build - no system dependency.
 **Pattern detection**: POSIX regex, O(1) deduplication via open-addressing hash set.
 
 ---
@@ -268,7 +269,7 @@ tests/                       # Detector unit tests + HW test harness
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE).
+Apache 2.0 - see [LICENSE](LICENSE).
 
 ---
 

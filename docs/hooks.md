@@ -44,21 +44,21 @@ Each hook receives one JSON object, followed by a newline, on stdin:
 
 ## Execution model
 
-- The hook is called via `python3 <script>` — the script must be executable or importable by Python 3.
+- The hook is called via `python3 <script>` - the script must be executable or importable by Python 3.
 - The monitor **never blocks**: each hook runs as a fire-and-forget grandchild process (double-fork). If the script takes 10 seconds, emon keeps monitoring.
-- If the script exits with a non-zero code, emon does not notice — hook failures are silent by design. Log inside the script if you need to debug.
+- If the script exits with a non-zero code, emon does not notice - hook failures are silent by design. Log inside the script if you need to debug.
 - Hooks are called in registration order, each independently.
 
 ## Examples
 
-### Minimal — print to stderr
+### Minimal - print to stderr
 
 ```python
 #!/usr/bin/env python3
 import json, sys
 
 ev = json.load(sys.stdin)
-print(f"[{ev['severity']}] {ev['device']}: {ev['rule']} — {ev['line']}", file=sys.stderr)
+print(f"[{ev['severity']}] {ev['device']}: {ev['rule']} - {ev['line']}", file=sys.stderr)
 ```
 
 ### Alert on CRITICAL only
@@ -142,6 +142,6 @@ con.close()
 
 ## Tips
 
-- Use `sys.exit(0)` to return early when severity doesn't match — the process cost is negligible.
-- Don't `import time; time.sleep(...)` inside a hook — it only blocks that subprocess, not the monitor, but it wastes resources.
+- Use `sys.exit(0)` to return early when severity doesn't match - the process cost is negligible.
+- Don't `import time; time.sleep(...)` inside a hook - it only blocks that subprocess, not the monitor, but it wastes resources.
 - For high-frequency events (e.g. WARN every second), add dedup logic in your script (file-based lock or SQLite) to avoid flooding your notification channel.
