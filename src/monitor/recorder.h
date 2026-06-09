@@ -16,8 +16,8 @@ typedef struct {
 
 typedef struct {
     char            device[32];
-    char            logpath[256];
-    char            crashpath[256];
+    char            logpath[512];
+    char            crashpath[512];
     FILE           *logfile;
     FILE           *crashfile;
     /* Ring buffer: last N lines for pre-event context */

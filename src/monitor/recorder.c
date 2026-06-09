@@ -47,9 +47,9 @@ int recorder_init(recorder_t *r, const char *device, recorder_cfg_t *cfg)
     /* Ensure logdir exists */
     mkdir(cfg->logdir, 0755);
 
-    snprintf(r->logpath,   512,
+    snprintf(r->logpath,   sizeof(r->logpath),
              "%s/%s.log",   cfg->logdir, device);
-    snprintf(r->crashpath, 512,
+    snprintf(r->crashpath, sizeof(r->crashpath),
              "%s/%s_events.log", cfg->logdir, device);
 
     r->logfile   = fopen(r->logpath,   "a");
