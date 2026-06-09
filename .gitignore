@@ -1,4 +1,19 @@
+# Build output
 espilon-monitor
-src/*.o
+emon_dbg
+emon
+build/
+*.o
+
+# Tests
 tests/test_detector
+tests/firmwares/
+
+# Runtime
 logs/
+
+# Local-only runtime pattern tweaks
+patterns/espilon.pat
+
+# Agent / scratch dirs (never ship)
+.sixth/

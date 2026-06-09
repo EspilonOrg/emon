@@ -1,8 +1,10 @@
 CC      = gcc
-CFLAGS  = -Ivendor/include -Wall -Wextra -std=c11 \
+VERSION ?= 0.1.0
+CFLAGS  = -Ivendor/include -Isrc -Wall -Wextra -std=c11 \
           -D_POSIX_C_SOURCE=200809L \
           -D_XOPEN_SOURCE=600 \
-          -Isrc
+          -DVERSION_STR=\"$(VERSION)\" \
+          -fstack-protector-strong
 LDFLAGS = vendor/lib/libserialport.a -lpthread
 
 ifeq ($(DEBUG), 1)
@@ -11,22 +13,21 @@ else
 	CFLAGS += -O2
 endif
 
-BIN     = espilon-monitor
-SRCS    = src/main.c \
-          src/serial.c \
-          src/detector.c \
-          src/monitor.c \
-          src/recorder.c \
-          src/reset.c \
-          src/display.c \
-          src/config.c \
-          src/interactive.c \
-          src/daemon.c \
-          src/scrollback.c \
-          src/tui.c
-OBJS    = $(SRCS:.c=.o)
+ifeq ($(SANITIZE), 1)
+	CFLAGS  += -fsanitize=address,undefined
+	LDFLAGS += -fsanitize=address,undefined
+endif
 
-.PHONY: all clean install check test
+BIN  = espilon-monitor
+SRCS = src/main.c \
+       src/app/config.c src/app/daemon.c \
+       src/monitor/detector.c src/monitor/monitor.c src/monitor/recorder.c \
+       src/serial/serial.c src/serial/reset.c \
+       src/ui/display.c src/ui/interactive.c src/ui/scrollback.c src/ui/tui.c \
+       src/utils/utils.c
+OBJS = $(SRCS:.c=.o)
+
+.PHONY: all clean install uninstall check test
 
 all: $(BIN)
 
@@ -36,7 +37,7 @@ $(BIN): $(OBJS)
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-TEST_SRCS = tests/test_detector.c src/detector.c
+TEST_SRCS = tests/test_detector.c src/monitor/detector.c src/utils/utils.c
 TEST_BIN  = tests/test_detector
 
 test: $(TEST_BIN)
@@ -50,6 +51,14 @@ clean:
 
 install: $(BIN)
 	install -m 755 $(BIN) /usr/local/bin/
+	@if [ -f docs/emon.1 ]; then \
+	    install -d /usr/local/share/man/man1/; \
+	    install -m 644 docs/emon.1 /usr/local/share/man/man1/; \
+	fi
+
+uninstall:
+	rm -f /usr/local/bin/$(BIN)
+	rm -f /usr/local/share/man/man1/emon.1
 
 check:
 	@command -v pkg-config >/dev/null && pkg-config --exists libserialport \
