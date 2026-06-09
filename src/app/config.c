@@ -46,7 +46,24 @@ int config_load_file(config_t *cfg, const char *path)
         else if (strcmp(k, "verbose")       == 0) cfg->verbose    = (strcmp(v,"true")==0||strcmp(v,"1")==0);
         else if (strcmp(k, "color")         == 0) cfg->color      = !(strcmp(v,"false")==0||strcmp(v,"0")==0);
         else if (strcmp(k, "timestamps")    == 0) cfg->timestamps = !(strcmp(v,"false")==0||strcmp(v,"0")==0);
-        else if (strcmp(k, "auto_reset")    == 0) cfg->auto_reset = (strcmp(v,"true")==0||strcmp(v,"1")==0);
+        else if (strcmp(k, "auto_reset")    == 0) cfg->auto_reset   = (strcmp(v,"true")==0||strcmp(v,"1")==0);
+        else if (strcmp(k, "flow_control")  == 0) snprintf(cfg->flow_control, sizeof(cfg->flow_control), "%.15s", v);
+        else if (strcmp(k, "context")       == 0) cfg->context_lines = atoi(v);
+        else if (strcmp(k, "timeout")       == 0) cfg->timeout_sec   = atoi(v);
+        else if (strcmp(k, "json_events")   == 0) cfg->json_events   = (strcmp(v,"true")==0||strcmp(v,"1")==0);
+        else if (strcmp(k, "tui")           == 0) cfg->tui           = (strcmp(v,"true")==0||strcmp(v,"1")==0);
+        else if (strcmp(k, "background")    == 0) cfg->background    = (strcmp(v,"true")==0||strcmp(v,"1")==0);
+        else if (strcmp(k, "hex")           == 0) cfg->hex_mode      = (strcmp(v,"true")==0||strcmp(v,"1")==0);
+        else if (strcmp(k, "on_event")      == 0) {
+            if (cfg->non_event_scripts < CONFIG_MAX_PLUGINS)
+                snprintf(cfg->on_event_scripts[cfg->non_event_scripts++],
+                         256, "%s", v);
+        }
+        else if (strcmp(k, "pattern")       == 0) {
+            if (cfg->npattern_files < CONFIG_MAX_PATTERNS)
+                snprintf(cfg->pattern_files[cfg->npattern_files++],
+                         256, "%s", v);
+        }
     }
     fclose(f);
     return 0;
@@ -121,6 +138,7 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
                 snprintf(cfg->on_event_scripts[cfg->non_event_scripts++],
                          256, "%s", argv[++i]);
         }
+        else if (strcmp(argv[i], "--hex") == 0) cfg->hex_mode = true;
         else if (strcmp(argv[i], "--no-color") == 0) cfg->color = false;
         else if (strcmp(argv[i], "--no-timestamps") == 0) cfg->timestamps = false;
         else if (strcmp(argv[i], "--name") == 0 && i+1 < argc) {

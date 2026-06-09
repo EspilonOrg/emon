@@ -34,6 +34,8 @@ static void usage(const char *prog)
         "  --auto-patterns <dir>   Auto-load <dir>/<family>.pat on device detect\n"
         "  --patterns, -p <file>   Load extra .pat pattern file\n"
         "  --flow-control <mode>   Serial flow control: none (default), rtscts, xonxoff\n"
+        "  --hex                   Hex dump mode: show raw bytes as OFFSET  HEX  |ASCII|\n"
+        "                          Pattern detection still works (events fire normally)\n"
         "  --on-event <script>     Call script (python3) with JSON on stdin on each event\n"
         "  --interactive, -i       Bidirectional mode: stdin → device, device → stdout\n"
         "                          Optional: -i <port>  to select target port when multi-port\n"

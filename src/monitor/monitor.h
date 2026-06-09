@@ -23,6 +23,10 @@ typedef struct {
     pthread_t       thread;
     char            family[32];   /* pattern family in use */
     int             dev_idx;      /* index in m->devices[] */
+    /* Hex dump state (used when cfg->hex_mode) */
+    uint64_t        hex_offset;
+    uint8_t         hex_row[16];
+    int             hex_row_len;
 } monitor_device_t;
 
 typedef struct {

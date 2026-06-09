@@ -6,6 +6,7 @@
 #include <string.h>
 #include <time.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #define RESET   "\033[0m"
 #define BOLD    "\033[1m"
@@ -67,9 +68,52 @@ void display_init(const display_cfg_t *cfg)
     if (cfg) g_cfg = *cfg;
 }
 
+void display_hex(int dev_idx, const char *device, const char *color,
+                 uint64_t offset, const uint8_t *data, int len)
+{
+    /* Build hex column: "XX XX XX XX XX XX XX XX  XX XX XX XX XX XX XX XX" (47 chars) */
+    char hex[64] = {0};
+    char asc[17] = {0};
+    int  hi = 0;
+
+    for (int i = 0; i < 16; i++) {
+        if (i == 8) hex[hi++] = ' ';   /* extra gap between two groups of 8 */
+        if (i < len) {
+            hi += snprintf(hex + hi, sizeof(hex) - hi, "%02X ", data[i]);
+            asc[i] = isprint((unsigned char)data[i]) ? (char)data[i] : '.';
+        } else {
+            memcpy(hex + hi, "   ", 3); hi += 3;
+            asc[i] = ' ';
+        }
+    }
+    if (hi > 0 && hex[hi - 1] == ' ') hex[--hi] = '\0';
+
+    char buf[DISPLAY_BUF];
+
+    if (tui_is_active()) {
+        snprintf(buf, sizeof(buf), "%04llX  %s  |%s|",
+                 (unsigned long long)offset, hex, asc);
+        tui_push_line(dev_idx, buf);
+        return;
+    }
+
+    int w = g_cfg.name_width > 0 ? g_cfg.name_width : (int)strlen(device);
+    snprintf(buf, sizeof(buf), "%s[%-*s]%s %04llX  %s  |%s|",
+             g_cfg.color ? color : "", w, device,
+             g_cfg.color ? RESET : "",
+             (unsigned long long)offset, hex, asc);
+
+    if (!scrollback_is_active()) {
+        print_ts();
+        printf("%s\n", buf);
+    }
+    scrollback_push(buf);
+}
+
 void display_line(int dev_idx, const char *device, const char *color, const char *line)
 {
-    if (!g_cfg.verbose) return;
+    /* In hex mode the raw bytes are already rendered by display_hex() — skip text */
+    if (!g_cfg.verbose || g_cfg.hex_mode) return;
 
     /* Line content is bounded by linebuf[1024] in monitor.c - 1024 is sufficient */
     char plain[1024];

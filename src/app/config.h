@@ -64,6 +64,9 @@ typedef struct {
     /* Event hooks: scripts called with JSON on stdin when an event fires */
     char        on_event_scripts[CONFIG_MAX_PLUGINS][256];
     int         non_event_scripts;
+
+    /* Hex dump mode: display raw bytes as hex+ASCII rows instead of text */
+    bool        hex_mode;
 } config_t;
 
 void config_defaults(config_t *cfg);

@@ -119,15 +119,25 @@ static void *device_thread(void *arg)
 
         int n = serial_read(&dev->port, raw, sizeof(raw) - 1);
 
-        /* Flush partial line on timeout (handles prompts like "striker:>" with no \n) */
+        /* Flush partial line/hex on timeout (handles prompts like "striker:>" with no \n) */
         if (n <= 0) {
+            if (mon->cfg->hex_mode && dev->hex_row_len > 0) {
+                pthread_mutex_lock(&mon->print_lock);
+                display_hex(dev->dev_idx, dev->port.name, dev->color,
+                            dev->hex_offset, dev->hex_row, dev->hex_row_len);
+                pthread_mutex_unlock(&mon->print_lock);
+                dev->hex_offset  += (uint64_t)dev->hex_row_len;
+                dev->hex_row_len  = 0;
+            }
             if (linelen > 0) {
                 linebuf[linelen] = '\0';
                 strip_ansi(linebuf, clean, (int)sizeof(clean));
                 recorder_write(&dev->recorder, clean);
-                pthread_mutex_lock(&mon->print_lock);
-                display_line(dev->dev_idx, dev->port.name, dev->color, linebuf);
-                pthread_mutex_unlock(&mon->print_lock);
+                if (!mon->cfg->hex_mode) {
+                    pthread_mutex_lock(&mon->print_lock);
+                    display_line(dev->dev_idx, dev->port.name, dev->color, linebuf);
+                    pthread_mutex_unlock(&mon->print_lock);
+                }
                 linelen = 0;
             }
             continue;
@@ -135,6 +145,19 @@ static void *device_thread(void *arg)
 
         for (int i = 0; i < n; i++) {
             char c = (char)raw[i];
+
+            /* Hex mode: accumulate raw bytes and flush every 16 */
+            if (mon->cfg->hex_mode) {
+                dev->hex_row[dev->hex_row_len++] = raw[i];
+                if (dev->hex_row_len == 16) {
+                    pthread_mutex_lock(&mon->print_lock);
+                    display_hex(dev->dev_idx, dev->port.name, dev->color,
+                                dev->hex_offset, dev->hex_row, 16);
+                    pthread_mutex_unlock(&mon->print_lock);
+                    dev->hex_offset  += 16;
+                    dev->hex_row_len  = 0;
+                }
+            }
 
             /* ESC[5n → ESC[0n : capability probe */
             if ((uint8_t)c == PROBE_SEQ[probe_len]) {
@@ -243,6 +266,7 @@ int monitor_init(monitor_t *m, config_t *cfg)
         .verbose    = cfg->verbose,
         .timestamps = cfg->timestamps,
         .color      = cfg->color,
+        .hex_mode   = cfg->hex_mode,
         .name_width = name_w,
     };
     display_init(&dcfg);
