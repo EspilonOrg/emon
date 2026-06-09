@@ -1,4 +1,4 @@
-.TH ESPILON\-MONITOR 1 "2026-06-09" "espilon-monitor 0.1.0" "User Commands"
+.TH ESPILON\-MONITOR 1 "2026-06-09" "espilon-monitor 0.2.0" "User Commands"
 .SH NAME
 espilon\-monitor \- multi-port serial monitor with pattern detection for embedded devices
 .SH SYNOPSIS
@@ -48,6 +48,32 @@ Block until the named pattern fires, then exit 0. Exit 124 on timeout.
 .TP
 .BI \-\-timeout " secs"
 Exit 124 after \fIsecs\fR seconds. Combine with \fB\-\-exit\-on\fR or \fB\-\-wait\-for\fR.
+.TP
+.BI \-\-flow\-control " mode"
+Set serial flow control.
+.I mode
+is one of \fBnone\fR (default), \fBrtscts\fR (hardware), or \fBxonxoff\fR (software).
+.TP
+.B \-\-hex
+Hex dump mode: display raw bytes as aligned \fIOFFSET  HEX  |ASCII|\fR rows
+(16 bytes per row). Pattern detection remains active — events still fire
+and \fB\-\-exit\-on\fR / \fB\-\-wait\-for\fR work normally.
+.TP
+.BI \-\-on\-event " script"
+Call \fIscript\fR via \fBpython3\fR(1) on every matched event.
+A JSON payload is written to the script's stdin:
+.RS
+.PP
+.EX
+{"rule":"NAME","severity":"CRITICAL","device":"ttyUSB0",
+ "line":"<matched line>","ts":<unix ms>}
+.EE
+.RE
+.IP
+The script runs as a fire-and-forget subprocess (double-fork); the monitor
+is never blocked.
+Up to 8 scripts may be registered with repeated \fB\-\-on\-event\fR flags.
+See \fIdocs/hooks.md\fR for examples.
 .TP
 .B \-\-json\-events
 Emit an NDJSON record to stdout for each detected event.
@@ -145,6 +171,24 @@ Run as background daemon:
 .B espilon-monitor --auto-patterns patterns/ --bg --logdir /opt/emon/logs /dev/ttyUSB1
 .br
 .B espilon-monitor stop
+.RE
+.PP
+Hex dump a binary protocol stream:
+.PP
+.RS
+.B espilon-monitor --hex /dev/ttyUSB0
+.RE
+.PP
+Hardware flow control + event hook:
+.PP
+.RS
+.B espilon-monitor --flow-control rtscts --on-event hooks/alert.py --patterns patterns/esp32.pat /dev/ttyUSB0
+.RE
+.PP
+Load all settings from a config file:
+.PP
+.RS
+.B espilon-monitor --config .emon.conf /dev/ttyUSB0
 .RE
 .SH EXIT STATUS
 .TP

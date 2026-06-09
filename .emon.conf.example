@@ -1,0 +1,77 @@
+# emon configuration file — reference with all supported keys
+#
+# Load with:  emon --config .emon.conf /dev/ttyUSB0
+# Or copy to: ~/.config/emon/emon.conf and load explicitly each time.
+#
+# CLI flags always override values set here.
+# Keys are case-sensitive; values are trimmed of leading/trailing whitespace.
+# Lines starting with # are ignored.
+
+# ── Serial ─────────────────────────────────────────────────────────────────
+
+# Baud rate (default: 115200)
+baud = 115200
+
+# Flow control: none | rtscts | xonxoff  (default: none)
+flow_control = none
+
+# ── Pattern detection ───────────────────────────────────────────────────────
+
+# Auto-load <dir>/<family>.pat when the device family is detected from USB
+# VID/PID or passive serial read. Leave empty to disable.
+auto_patterns = patterns/
+
+# Extra pattern files to load (additive — one line per file, repeat as needed)
+# pattern = patterns/esp32.pat
+# pattern = patterns/custom.pat
+
+# ── Output ──────────────────────────────────────────────────────────────────
+
+# Print all serial lines (not just events).  true | false  (default: true)
+verbose = true
+
+# ANSI colors in output.  true | false  (default: true)
+color = true
+
+# Prepend HH:MM:SS.mmm timestamps.  true | false  (default: true)
+timestamps = true
+
+# Hex dump mode: show raw bytes as OFFSET  HEX  |ASCII| rows.
+# Pattern detection still works in hex mode.  true | false  (default: false)
+hex = false
+
+# Emit an NDJSON line to stdout for each matched event.  true | false
+json_events = false
+
+# Split-pane TUI (one pane per device, native ANSI, no ncurses).  true | false
+tui = false
+
+# ── Logging ─────────────────────────────────────────────────────────────────
+
+# Directory for per-device <name>.log and <name>_events.log files.
+# Logging is disabled when this is empty (default).
+# logdir = ./logs
+
+# Number of pre-event context lines saved in <name>_events.log (default: 10)
+context = 10
+
+# ── Exit / CI ───────────────────────────────────────────────────────────────
+
+# Timeout in seconds. Exit 124 when elapsed without the wait pattern firing.
+# 0 = no timeout (default).
+timeout = 0
+
+# ── Daemon ──────────────────────────────────────────────────────────────────
+
+# Run as a background daemon.  true | false  (default: false)
+background = false
+
+# ── Event hooks ─────────────────────────────────────────────────────────────
+
+# Call a Python 3 script on every matched event. JSON payload on stdin.
+# Fire-and-forget (double-fork) — the monitor is never blocked.
+# Up to 8 scripts; repeat this key for each one.
+# See docs/hooks.md for the payload schema and example scripts.
+#
+# on_event = hooks/alert.py
+# on_event = hooks/slack.py
