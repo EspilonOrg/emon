@@ -1,5 +1,5 @@
 CC      = gcc
-VERSION ?= 0.1.0
+VERSION ?= 0.2.0
 CFLAGS  = -Ivendor/include -Isrc -Wall -Wextra -std=c11 \
           -D_POSIX_C_SOURCE=200809L \
           -D_XOPEN_SOURCE=600 \

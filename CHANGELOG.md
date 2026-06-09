@@ -5,7 +5,7 @@ All notable changes to **emon** (espilon-monitor) are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project aims to follow [Semantic Versioning](https://semver.org/).
 
-## [Unreleased] — v0.2.0
+## [0.2.0] - 2026-06-09
 
 ### Added
 - **O(1) event deduplication**: open-addressing hash set (2048 slots, FNV-1a) replaces
