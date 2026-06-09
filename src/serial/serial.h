@@ -21,6 +21,7 @@ typedef struct {
     char                    path[64];     /* e.g. /dev/ttyACM0 */
     char                    name[32];     /* friendly name, e.g. "C6-TEE" */
     int                     baud;
+    enum sp_flowcontrol     flow;         /* SP_FLOWCONTROL_NONE / RTSCTS / XONXOFF */
     struct sp_port         *sp;
     port_state_t            state;
     uint64_t                bytes_rx;

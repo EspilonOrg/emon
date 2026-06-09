@@ -114,6 +114,13 @@ int config_parse_args(config_t *cfg, int argc, char *argv[])
             cfg->verbose = true;
         else if (strcmp(argv[i], "--quiet") == 0 || strcmp(argv[i], "-q") == 0)
             cfg->verbose = false;
+        else if (strcmp(argv[i], "--flow-control") == 0 && i+1 < argc)
+            snprintf(cfg->flow_control, sizeof(cfg->flow_control), "%s", argv[++i]);
+        else if (strcmp(argv[i], "--on-event") == 0 && i+1 < argc) {
+            if (cfg->non_event_scripts < CONFIG_MAX_PLUGINS)
+                snprintf(cfg->on_event_scripts[cfg->non_event_scripts++],
+                         256, "%s", argv[++i]);
+        }
         else if (strcmp(argv[i], "--no-color") == 0) cfg->color = false;
         else if (strcmp(argv[i], "--no-timestamps") == 0) cfg->timestamps = false;
         else if (strcmp(argv[i], "--name") == 0 && i+1 < argc) {

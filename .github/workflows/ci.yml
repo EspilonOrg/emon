@@ -57,3 +57,14 @@ jobs:
           --error-exitcode=1
           -Isrc -Ivendor/include
           src/
+
+  hw-test-lint:
+    name: hw-test scripts lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          bash -n tests/build_fw.sh
+          bash -n tests/run_hw_tests.sh

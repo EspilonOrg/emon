@@ -7,6 +7,7 @@
 #define CONFIG_MAX_PORTS      32
 #define CONFIG_MAX_PATTERNS   16
 #define CONFIG_MAX_EXIT_RULES 16
+#define CONFIG_MAX_PLUGINS     8
 
 typedef struct {
     char rule_name[64];
@@ -56,6 +57,13 @@ typedef struct {
 
     /* TUI split-pane mode */
     bool        tui;
+
+    /* Serial flow control: "none" (default), "rtscts", "xonxoff" */
+    char        flow_control[16];
+
+    /* Event hooks: scripts called with JSON on stdin when an event fires */
+    char        on_event_scripts[CONFIG_MAX_PLUGINS][256];
+    int         non_event_scripts;
 } config_t;
 
 void config_defaults(config_t *cfg);

@@ -31,19 +31,31 @@ uint32_t det_hash(const char *rule_name, const char *line)
     return h;
 }
 
-static bool dedup_seen(detector_t *d, uint32_t hash)
+static bool dedup_seen(detector_t *d, uint32_t h)
 {
-    int sz = (int)(sizeof(d->seen) / sizeof(d->seen[0]));
-    for (int i = 0; i < sz; i++)
-        if (d->seen[i] == hash) return true;
+    uint32_t slot = h & (DEDUP_SLOTS - 1);
+    for (int i = 0; i < DEDUP_SLOTS; i++) {
+        uint32_t s = (slot + i) & (DEDUP_SLOTS - 1);
+        if (!d->seen_used[s]) return false;
+        if (d->seen[s] == h)  return true;
+    }
     return false;
 }
 
-static void dedup_add(detector_t *d, uint32_t hash)
+static void dedup_add(detector_t *d, uint32_t h)
 {
-    int sz = (int)(sizeof(d->seen) / sizeof(d->seen[0]));
-    d->seen[d->seen_head % sz] = hash;
-    d->seen_head++;
+    uint32_t slot = h & (DEDUP_SLOTS - 1);
+    for (int i = 0; i < DEDUP_SLOTS; i++) {
+        uint32_t s = (slot + i) & (DEDUP_SLOTS - 1);
+        if (!d->seen_used[s] || d->seen[s] == h) {
+            d->seen[s]      = h;
+            d->seen_used[s] = true;
+            return;
+        }
+    }
+    /* Table full: overwrite home slot (shouldn't happen in practice) */
+    d->seen[slot]      = h;
+    d->seen_used[slot] = true;
 }
 
 const char *severity_str(severity_t s)

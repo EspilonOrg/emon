@@ -38,13 +38,18 @@ typedef struct {
 } det_event_t;
 
 /* ── Detector context ──────────────────────────────────────────────────── */
+
+/* Open-addressing hash set for deduplication: O(1) lookup/insert.
+ * Must be a power of 2. 2048 slots ≈ 10 KB; false-positive rate negligible
+ * for any realistic session (FNV-1a quality + linear probing). */
+#define DEDUP_SLOTS 2048
+
 typedef struct {
     det_rule_t  rules[DETECTOR_MAX_PATTERNS];
     int         nrules;
 
-    /* Deduplication: ring buffer of recent hashes */
-    uint32_t    seen[512];
-    int         seen_head;
+    uint32_t    seen[DEDUP_SLOTS];
+    bool        seen_used[DEDUP_SLOTS];
 } detector_t;
 
 /* ── Lifecycle ─────────────────────────────────────────────────────────── */

@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdatomic.h>
+#include <sys/wait.h>
 
 /* Thread argument - carries both device and parent monitor */
 typedef struct {
@@ -24,6 +25,62 @@ static void *timeout_thread(void *arg);   /* forward decl */
 
 /* Shared exit code - set by the first matching exit rule or timeout */
 static atomic_int   s_exit_code = 0;
+
+/* ── Plugin hooks ────────────────────────────────────────────────────────
+ * For each --on-event script, fork a grandchild (double-fork so no zombie),
+ * pipe the JSON event to its stdin, and exec python3.
+ * The calling thread is not blocked; each fork+_exit is ~microseconds.
+ * ──────────────────────────────────────────────────────────────────────── */
+static void plugin_fire(const config_t *cfg, const det_event_t *ev)
+{
+    if (!cfg->non_event_scripts) return;
+
+    /* Build JSON — escape backslash, double-quote, and newline in line field */
+    char esc[768];
+    int  ej = 0;
+    for (const char *p = ev->line; *p && ej < (int)sizeof(esc) - 3; p++) {
+        if (*p == '\\' || *p == '"') esc[ej++] = '\\';
+        else if (*p == '\n')         { esc[ej++] = '\\'; esc[ej++] = 'n'; continue; }
+        esc[ej++] = *p;
+    }
+    esc[ej] = '\0';
+
+    char json[1024];
+    snprintf(json, sizeof(json),
+             "{\"rule\":\"%s\",\"severity\":\"%s\","
+             "\"device\":\"%s\",\"line\":\"%s\",\"ts\":%llu}\n",
+             ev->rule ? ev->rule->name : "UNKNOWN",
+             severity_str(ev->severity),
+             ev->device, esc,
+             (unsigned long long)ev->timestamp);
+
+    for (int i = 0; i < cfg->non_event_scripts; i++) {
+        const char *script = cfg->on_event_scripts[i];
+
+        pid_t child = fork();
+        if (child < 0) continue;
+
+        if (child == 0) {
+            /* Child: fork again so grandchild is reparented to init */
+            pid_t grand = fork();
+            if (grand == 0) {
+                /* Grandchild: pipe JSON to stdin and exec the script */
+                int fds[2];
+                if (pipe(fds) == 0) {
+                    if (write(fds[1], json, strlen(json)) > 0) { /* written */ }
+                    close(fds[1]);
+                    if (dup2(fds[0], STDIN_FILENO) < 0) _exit(1);
+                    close(fds[0]);
+                }
+                execlp("python3", "python3", script, NULL);
+                _exit(1);
+            }
+            _exit(0);
+        }
+        /* Parent: reap child immediately — grandchild inherited by init */
+        waitpid(child, NULL, 0);
+    }
+}
 
 static void *device_thread(void *arg)
 {
@@ -118,6 +175,7 @@ static void *device_thread(void *arg)
                         if (mon->cfg->json_events)
                             display_event_json(&ev);
                         recorder_save_event(&dev->recorder, &ev);
+                        plugin_fire(mon->cfg, &ev);
                         if (mon->cfg->auto_reset)
                             resetter_maybe_reset(&dev->resetter, &ev);
                         /* Check exit rules - first match wins */
@@ -198,6 +256,14 @@ int monitor_init(monitor_t *m, config_t *cfg)
         dev->port.baud           = cfg->baud;
         dev->port.auto_reconnect = true;
 
+        /* Flow control */
+        if (strcmp(cfg->flow_control, "rtscts") == 0)
+            dev->port.flow = SP_FLOWCONTROL_RTSCTS;
+        else if (strcmp(cfg->flow_control, "xonxoff") == 0)
+            dev->port.flow = SP_FLOWCONTROL_XONXOFF;
+        else
+            dev->port.flow = SP_FLOWCONTROL_NONE;
+
         if (cfg->logdir[0])
             recorder_init(&dev->recorder, dev->port.name, &rcfg);
         resetter_init(&dev->resetter, &dev->port,
@@ -258,6 +324,20 @@ int monitor_init(monitor_t *m, config_t *cfg)
         /* Load explicit -p / --patterns files */
         for (int j = 0; j < cfg->npattern_files; j++)
             detector_load_file(&dev->detector, cfg->pattern_files[j]);
+
+        /* Warn about exit rules that don't match any loaded pattern */
+        for (int r = 0; r < cfg->nexit_rules; r++) {
+            bool found = false;
+            for (int k = 0; k < dev->detector.nrules && !found; k++)
+                if (strcmp(dev->detector.rules[k].name,
+                           cfg->exit_rules[r].rule_name) == 0)
+                    found = true;
+            if (!found)
+                fprintf(stderr,
+                        "warning: [%s] --exit-on/--wait-for rule '%s' "
+                        "not found in loaded patterns — it will never fire\n",
+                        dev->port.name, cfg->exit_rules[r].rule_name);
+        }
 
         m->ndevices++;
     }

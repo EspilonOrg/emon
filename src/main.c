@@ -33,6 +33,8 @@ static void usage(const char *prog)
         "  --baud <N>              Baud rate (default: 115200)\n"
         "  --auto-patterns <dir>   Auto-load <dir>/<family>.pat on device detect\n"
         "  --patterns, -p <file>   Load extra .pat pattern file\n"
+        "  --flow-control <mode>   Serial flow control: none (default), rtscts, xonxoff\n"
+        "  --on-event <script>     Call script (python3) with JSON on stdin on each event\n"
         "  --interactive, -i       Bidirectional mode: stdin → device, device → stdout\n"
         "                          Optional: -i <port>  to select target port when multi-port\n"
         "                          Escape key Ctrl+A:  X=quit  A=send Ctrl+A  H=help\n"

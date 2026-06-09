@@ -18,11 +18,23 @@ static void write_ts(FILE *f)
 static void rotate_if_needed(recorder_t *r)
 {
     if (r->bytes_written < r->cfg->max_bytes) return;
-    if (r->logfile) {
-        fclose(r->logfile);
-        r->logfile = fopen(r->logpath, "w"); /* truncate */
-        r->bytes_written = 0;
-    }
+    if (!r->logfile) return;
+
+    fclose(r->logfile);
+    r->logfile = NULL;
+
+    /* Roll: .log.2 → .log.3, .log.1 → .log.2, .log → .log.1 */
+    char src[300], dst[300];
+    snprintf(src, sizeof(src), "%s.2", r->logpath);
+    snprintf(dst, sizeof(dst), "%s.3", r->logpath);
+    rename(src, dst);
+    snprintf(src, sizeof(src), "%s.1", r->logpath);
+    snprintf(dst, sizeof(dst), "%s.2", r->logpath);
+    rename(src, dst);
+    rename(r->logpath, src);
+
+    r->logfile       = fopen(r->logpath, "w");
+    r->bytes_written = 0;
 }
 
 int recorder_init(recorder_t *r, const char *device, recorder_cfg_t *cfg)

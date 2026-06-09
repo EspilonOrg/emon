@@ -12,20 +12,20 @@
 #include <sys/ioctl.h>
 #endif
 
-static int configure_port(struct sp_port *sp, int baud)
+static int configure_port(serial_port_t *p)
 {
     struct sp_port_config *cfg;
 
     if (sp_new_config(&cfg) != SP_OK)
         return -1;
 
-    sp_set_config_baudrate(cfg, baud);
+    sp_set_config_baudrate(cfg, p->baud);
     sp_set_config_bits(cfg, 8);
     sp_set_config_parity(cfg, SP_PARITY_NONE);
     sp_set_config_stopbits(cfg, 1);
-    sp_set_config_flowcontrol(cfg, SP_FLOWCONTROL_NONE);
+    sp_set_config_flowcontrol(cfg, p->flow);
 
-    int ret = (sp_set_config(sp, cfg) == SP_OK) ? 0 : -1;
+    int ret = (sp_set_config(p->sp, cfg) == SP_OK) ? 0 : -1;
     sp_free_config(cfg);
     return ret;
 }
@@ -72,7 +72,7 @@ int serial_open(serial_port_t *p)
     sp_set_rts(p->sp, SP_RTS_OFF);
 #endif
 
-    if (configure_port(p->sp, p->baud) != 0) {
+    if (configure_port(p) != 0) {
         sp_close(p->sp);
         sp_free_port(p->sp);
         p->sp    = NULL;
