@@ -1,20 +1,42 @@
-.TH ESPILON\-MONITOR 1 "2026-06-09" "espilon-monitor 0.2.0" "User Commands"
+.TH EMON 1 "2026-06-11" "emon 0.1.0" "User Commands"
 .SH NAME
-espilon\-monitor \- multi-port serial monitor with pattern detection for embedded devices
+emon \- multi-port serial monitor with pattern detection for embedded devices
 .SH SYNOPSIS
-.B espilon\-monitor
+.B emon
 [\fIOPTIONS\fR] \fIPORT\fR [\fIPORT2\fR ...]
 .br
-.B espilon\-monitor
+.B emon
 .IR stop | status
 .SH DESCRIPTION
-.B espilon\-monitor
-(\fBemon\fR) is a multi-port serial monitor designed for embedded device fleets.
+.B emon
+is a multi-port serial monitor designed for embedded device fleets.
 It watches one or more serial ports simultaneously, detects events using configurable
 regex pattern files, logs output per device, and can trigger actions (hardware reset,
 exit codes, JSON events) on pattern matches.
 .PP
 Ports can be specified as full paths (\fI/dev/ttyUSB0\fR) or bare names (\fIttyACM0\fR).
+.SH INSTALL
+.SS Debian / Ubuntu
+.EX
+curl -fsSL https://apt.espilon.net/espilon.gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/espilon.gpg
+echo "deb https://apt.espilon.net stable main" | sudo tee /etc/apt/sources.list.d/espilon.list
+sudo apt update && sudo apt install emon
+.EE
+.SS macOS (Homebrew)
+.EX
+brew tap EspilonOrg/tap
+brew install emon
+.EE
+.SS Arch Linux (AUR)
+.EX
+yay -S emon
+.EE
+.SS Build from source
+.EX
+git clone https://github.com/EspilonOrg/emon && cd emon
+make
+PREFIX=~/.local make install
+.EE
 .SH OPTIONS
 .TP
 .BI \-\-baud " N"
@@ -150,45 +172,45 @@ Per-device serial output log (when \fB\-\-logdir\fR is set).
 .I logs/<name>_events.log
 Per-device events log with pre-event context.
 .TP
-.I logs/.espilon\-monitor.pid
+.I logs/.emon.pid
 PID file written by daemon mode.
 .SH EXAMPLES
 Monitor two ports, auto-detect family, log to /tmp/emon:
 .PP
 .RS
-.B espilon-monitor --auto-patterns patterns/ --logdir /tmp/emon ttyUSB0 ttyACM0
+.B emon --auto-patterns patterns/ --logdir /tmp/emon ttyUSB0 ttyACM0
 .RE
 .PP
 CI: wait for boot message, exit 0 or 124 on 30s timeout:
 .PP
 .RS
-.B espilon-monitor --wait-for HANDSHAKE_OK --timeout 30 --json-events /dev/ttyUSB0
+.B emon --wait-for HANDSHAKE_OK --timeout 30 --json-events /dev/ttyUSB0
 .RE
 .PP
 Run as background daemon:
 .PP
 .RS
-.B espilon-monitor --auto-patterns patterns/ --bg --logdir /opt/emon/logs /dev/ttyUSB1
+.B emon --auto-patterns patterns/ --bg --logdir /opt/emon/logs /dev/ttyUSB1
 .br
-.B espilon-monitor stop
+.B emon stop
 .RE
 .PP
 Hex dump a binary protocol stream:
 .PP
 .RS
-.B espilon-monitor --hex /dev/ttyUSB0
+.B emon --hex /dev/ttyUSB0
 .RE
 .PP
 Hardware flow control + event hook:
 .PP
 .RS
-.B espilon-monitor --flow-control rtscts --on-event hooks/alert.py --patterns patterns/esp32.pat /dev/ttyUSB0
+.B emon --flow-control rtscts --on-event hooks/alert.py --patterns patterns/esp32.pat /dev/ttyUSB0
 .RE
 .PP
 Load all settings from a config file:
 .PP
 .RS
-.B espilon-monitor --config .emon.conf /dev/ttyUSB0
+.B emon --config .emon.conf /dev/ttyUSB0
 .RE
 .SH EXIT STATUS
 .TP
