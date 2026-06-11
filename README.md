@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/EspilonOrg/emon/actions/workflows/ci.yml/badge.svg)](https://github.com/EspilonOrg/emon/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.1.0-blueviolet.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.1.1-blueviolet.svg)](CHANGELOG.md)
 
 **Universal serial monitor for embedded devices.**  
 Watch any number of ports simultaneously. Detect crashes and events by pattern.  
@@ -12,7 +12,7 @@ Stream structured JSON to your pipeline. Log, react, automate.
 
 ## Install
 
-**Debian / Ubuntu**
+### Debian / Ubuntu
 
 ```bash
 curl -fsSL https://apt.espilon.net/espilon.gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/espilon.gpg
@@ -20,21 +20,21 @@ echo "deb https://apt.espilon.net stable main" | sudo tee /etc/apt/sources.list.
 sudo apt update && sudo apt install emon
 ```
 
-**macOS (Homebrew)**
+### macOS (Homebrew)
 
 ```bash
 brew tap EspilonOrg/tap
 brew install emon
 ```
 
-**Arch Linux (AUR)**
+### Arch Linux (AUR)
 
 ```bash
 yay -S emon
 # or: paru -S emon
 ```
 
-**Build from source**
+### Build from source
 
 ```bash
 git clone https://github.com/EspilonOrg/emon && cd emon

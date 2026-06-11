@@ -5,6 +5,14 @@ All notable changes to **emon** (espilon-monitor) are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project aims to follow [Semantic Versioning](https://semver.org/).
 
+## [0.1.1] - 2026-06-11
+
+### Fixed
+
+- `make install` now installs pattern files to `share/emon/patterns/` and
+  `.emon.conf.example` to `share/doc/emon/` — previously only the binary and
+  man page were installed.
+
 ## [0.1.0] - 2026-06-10
 
 First public release. Universal multi-port serial monitor for embedded devices.
@@ -42,4 +50,5 @@ First public release. Universal multi-port serial monitor for embedded devices.
 - `esp32_hello` and `arduino_interactive` firmware sources for demo reproduction.
 - Apache 2.0 license.
 
+[0.1.1]: https://github.com/EspilonOrg/emon/releases/tag/v0.1.1
 [0.1.0]: https://github.com/EspilonOrg/emon/releases/tag/v0.1.0
