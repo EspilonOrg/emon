@@ -1,0 +1,39 @@
+# Build output
+espilon-monitor
+emon_dbg
+emon
+build/
+*.o
+
+# Tests
+tests/test_detector
+
+# Firmware build artifacts (keep sources, ignore outputs)
+tests/firmwares/**/build/
+tests/firmwares/**/.pio/
+tests/firmwares/**/*.bin
+tests/firmwares/**/*.elf
+tests/firmwares/**/*.map
+tests/firmwares/**/.bin_timestamp
+
+# Runtime
+logs/
+
+# Local-only runtime pattern tweaks
+patterns/espilon.pat
+
+# Config overrides
+.emon.conf
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*.swn
+.vscode/
+.idea/
+*.iml
+
+# Agent / scratch dirs (never ship)
+.sixth/

@@ -1,0 +1,211 @@
+.TH ESPILON\-MONITOR 1 "2026-06-09" "espilon-monitor 0.2.0" "User Commands"
+.SH NAME
+espilon\-monitor \- multi-port serial monitor with pattern detection for embedded devices
+.SH SYNOPSIS
+.B espilon\-monitor
+[\fIOPTIONS\fR] \fIPORT\fR [\fIPORT2\fR ...]
+.br
+.B espilon\-monitor
+.IR stop | status
+.SH DESCRIPTION
+.B espilon\-monitor
+(\fBemon\fR) is a multi-port serial monitor designed for embedded device fleets.
+It watches one or more serial ports simultaneously, detects events using configurable
+regex pattern files, logs output per device, and can trigger actions (hardware reset,
+exit codes, JSON events) on pattern matches.
+.PP
+Ports can be specified as full paths (\fI/dev/ttyUSB0\fR) or bare names (\fIttyACM0\fR).
+.SH OPTIONS
+.TP
+.BI \-\-baud " N"
+Set baud rate (default: 115200).
+.TP
+.BI \-\-auto\-patterns " dir"
+Automatically load \fIdir\fR/\fIfamily\fR.pat after detecting the device family
+from USB VID/PID or passive serial read.
+.TP
+.BI \-\-patterns " file" ", " \-p " file"
+Load an extra \fI.pat\fR pattern file. Can be repeated.
+.TP
+.BI \-\-logdir " dir"
+Write per-device \fI<name>.log\fR and \fI<name>_events.log\fR files under \fIdir\fR.
+Logging is disabled if this option is not set.
+.TP
+.BI \-\-name " port" = name
+Assign a friendly name to a port (used in log filenames and output).
+.TP
+.B \-\-auto\-reset
+Automatically assert RTS/DTR to reset the device when a CRITICAL event fires.
+.TP
+.BI \-\-context " N"
+Save \fIN\fR pre-event context lines in the events log (default: 10; 0 = disabled).
+.TP
+.BI \-\-exit\-on " RULE" [ =N ]
+Exit with code \fIN\fR (default 0) when the named pattern rule fires.
+.TP
+.BI \-\-wait\-for " RULE"
+Block until the named pattern fires, then exit 0. Exit 124 on timeout.
+.TP
+.BI \-\-timeout " secs"
+Exit 124 after \fIsecs\fR seconds. Combine with \fB\-\-exit\-on\fR or \fB\-\-wait\-for\fR.
+.TP
+.BI \-\-flow\-control " mode"
+Set serial flow control.
+.I mode
+is one of \fBnone\fR (default), \fBrtscts\fR (hardware), or \fBxonxoff\fR (software).
+.TP
+.B \-\-hex
+Hex dump mode: display raw bytes as aligned \fIOFFSET  HEX  |ASCII|\fR rows
+(16 bytes per row). Pattern detection remains active - events still fire
+and \fB\-\-exit\-on\fR / \fB\-\-wait\-for\fR work normally.
+.TP
+.BI \-\-on\-event " script"
+Call \fIscript\fR via \fBpython3\fR(1) on every matched event.
+A JSON payload is written to the script's stdin:
+.RS
+.PP
+.EX
+{"rule":"NAME","severity":"CRITICAL","device":"ttyUSB0",
+ "line":"<matched line>","ts":<unix ms>}
+.EE
+.RE
+.IP
+The script runs as a fire-and-forget subprocess (double-fork); the monitor
+is never blocked.
+Up to 8 scripts may be registered with repeated \fB\-\-on\-event\fR flags.
+See \fIdocs/hooks.md\fR for examples.
+.TP
+.B \-\-json\-events
+Emit an NDJSON record to stdout for each detected event.
+Suitable for piping into \fBjq\fR or log aggregators.
+.TP
+.B \-\-tui
+Launch a split-pane TUI with one pane per device (pure ANSI, no ncurses).
+Key bindings: Tab = next pane, Enter = send line to device, Ctrl+A [ = scrollback,
+Ctrl+Q = quit.
+.TP
+.B \-\-interactive ", " \-i
+Enable bidirectional mode: stdin is forwarded to the target device.
+Optionally followed by a port name to target a specific port in multi-port mode.
+Ctrl+A key combos: X = quit, A = send literal Ctrl+A, H = help.
+.TP
+.BI \-\-interactive " port"
+Select which port receives stdin in multi-port interactive mode.
+.TP
+.B \-\-bg
+Double-fork and run as a background daemon. PID file is written to \fIlogdir/\fR.
+.TP
+.B \-v ", " \-\-verbose
+Print all serial output lines, not just detected events.
+.TP
+.B \-q ", " \-\-quiet
+Print only detected events (overrides \fB\-\-verbose\fR).
+.TP
+.B \-\-no\-color
+Disable ANSI color output.
+.TP
+.B \-\-no\-timestamps
+Disable timestamps in output.
+.TP
+.BI \-\-config " file"
+Load settings from an INI-style config file before processing CLI arguments.
+.TP
+.B \-\-list
+List available serial ports and exit.
+.TP
+.B \-\-version
+Print version and exit.
+.TP
+.B \-h ", " \-\-help
+Print usage and exit.
+.SH SUB-COMMANDS
+.TP
+.B stop
+Stop a running background daemon (reads PID from \fIlogdir/\fR).
+.TP
+.B status
+Print whether a background daemon is running.
+.SH PATTERN FILES
+Pattern files use the format:
+.PP
+.RS
+.I SEVERITY  NAME  REGEX
+.RE
+.PP
+\fISEVERITY\fR is one of \fBCRITICAL\fR, \fBHIGH\fR, \fBWARN\fR, \fBINFO\fR.
+\fINAME\fR is an identifier (used with \fB\-\-exit\-on\fR / \fB\-\-wait\-for\fR).
+\fIREGEX\fR is a POSIX extended regular expression matched against each line.
+Lines starting with \fB#\fR are comments.
+.PP
+Built-in families (loaded via \fB\-\-auto\-patterns\fR): \fBesp32\fR, \fBstm32\fR,
+\fBarduino\fR, \fBfreertos\fR, \fBzephyr\fR, \fBesp\-idf\fR.
+.SH FILES
+.TP
+.I patterns/*.pat
+Pattern rule files for supported device families.
+.TP
+.I logs/<name>.log
+Per-device serial output log (when \fB\-\-logdir\fR is set).
+.TP
+.I logs/<name>_events.log
+Per-device events log with pre-event context.
+.TP
+.I logs/.espilon\-monitor.pid
+PID file written by daemon mode.
+.SH EXAMPLES
+Monitor two ports, auto-detect family, log to /tmp/emon:
+.PP
+.RS
+.B espilon-monitor --auto-patterns patterns/ --logdir /tmp/emon ttyUSB0 ttyACM0
+.RE
+.PP
+CI: wait for boot message, exit 0 or 124 on 30s timeout:
+.PP
+.RS
+.B espilon-monitor --wait-for HANDSHAKE_OK --timeout 30 --json-events /dev/ttyUSB0
+.RE
+.PP
+Run as background daemon:
+.PP
+.RS
+.B espilon-monitor --auto-patterns patterns/ --bg --logdir /opt/emon/logs /dev/ttyUSB1
+.br
+.B espilon-monitor stop
+.RE
+.PP
+Hex dump a binary protocol stream:
+.PP
+.RS
+.B espilon-monitor --hex /dev/ttyUSB0
+.RE
+.PP
+Hardware flow control + event hook:
+.PP
+.RS
+.B espilon-monitor --flow-control rtscts --on-event hooks/alert.py --patterns patterns/esp32.pat /dev/ttyUSB0
+.RE
+.PP
+Load all settings from a config file:
+.PP
+.RS
+.B espilon-monitor --config .emon.conf /dev/ttyUSB0
+.RE
+.SH EXIT STATUS
+.TP
+.B 0
+Normal exit, or pattern matched for \fB\-\-wait\-for\fR / \fB\-\-exit\-on\fR with code 0.
+.TP
+.B 1
+Error (port not found, monitor init failed, etc.).
+.TP
+.B 124
+Timeout elapsed (\fB\-\-timeout\fR) without the wait pattern firing.
+.TP
+.I N
+Custom exit code set by \fB\-\-exit\-on RULE=N\fR.
+.SH AUTHOR
+Eun0us <eun0us@espilon.net>
+.SH SEE ALSO
+.BR screen (1),
+.BR minicom (1),
+.BR picocom (1)

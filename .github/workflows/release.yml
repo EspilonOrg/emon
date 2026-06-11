@@ -1,0 +1,47 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and release
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: gcc --version && make --version | head -1
+
+      - name: Build release binary
+        run: make
+
+      - name: Sanity check
+        run: ./espilon-monitor --version
+
+      - name: Package
+        run: |
+          VERSION="${GITHUB_REF_NAME}"
+          mkdir -p dist
+          cp espilon-monitor dist/emon
+          cp LICENSE README.md CHANGELOG.md dist/
+          cp -r patterns dist/
+          tar -czf "emon-${VERSION}-linux-amd64.tar.gz" -C dist .
+          sha256sum "emon-${VERSION}-linux-amd64.tar.gz" > "emon-${VERSION}-linux-amd64.tar.gz.sha256"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body: |
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for what's new.
+          files: |
+            emon-*.tar.gz
+            emon-*.sha256
+          draft: false
+          prerelease: false

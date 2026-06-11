@@ -1,0 +1,72 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: build + test (Linux)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show toolchain
+        run: gcc --version && make --version | head -1
+
+      - name: Dependency check
+        run: make check
+
+      - name: Build (-Wall -Wextra -fstack-protector-strong)
+        run: make
+
+      - name: Run tests
+        run: make test
+
+      - name: Sanity (binary runs)
+        run: ./espilon-monitor --version
+
+  sanitize:
+    name: ASan + UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with sanitizers
+        run: make DEBUG=1 SANITIZE=1
+
+      - name: Run tests under sanitizers
+        run: make test DEBUG=1 SANITIZE=1
+
+  static-analysis:
+    name: cppcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cppcheck
+        run: sudo apt-get install -y cppcheck
+
+      - name: Run cppcheck
+        run: >
+          cppcheck
+          --enable=warning,performance
+          --suppress=missingIncludeSystem
+          --error-exitcode=1
+          -Isrc -Ivendor/include
+          src/
+
+  hw-test-lint:
+    name: hw-test scripts lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Bash syntax check
+        run: |
+          bash -n tests/build_fw.sh
+          bash -n tests/run_hw_tests.sh
+          bash -n tests/run_hw_arduino.sh
+          bash -n tests/run_hw_pico.sh
