@@ -12,6 +12,30 @@ Stream structured JSON to your pipeline. Log, react, automate.
 
 ## Install
 
+**Debian / Ubuntu**
+
+```bash
+curl -fsSL https://apt.espilon.net/espilon.gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/espilon.gpg
+echo "deb https://apt.espilon.net stable main" | sudo tee /etc/apt/sources.list.d/espilon.list
+sudo apt update && sudo apt install emon
+```
+
+**macOS (Homebrew)**
+
+```bash
+brew tap EspilonOrg/tap
+brew install emon
+```
+
+**Arch Linux (AUR)**
+
+```bash
+yay -S emon
+# or: paru -S emon
+```
+
+**Build from source**
+
 ```bash
 git clone https://github.com/EspilonOrg/emon && cd emon
 make
