@@ -53,14 +53,18 @@ clean:
 install: $(BIN)
 	install -d $(PREFIX)/bin/
 	install -m 755 $(BIN) $(PREFIX)/bin/emon
-	@if [ -f docs/emon.1 ]; then \
-	    install -d $(PREFIX)/share/man/man1/; \
-	    install -m 644 docs/emon.1 $(PREFIX)/share/man/man1/; \
-	fi
+	install -d $(PREFIX)/share/man/man1/
+	install -m 644 docs/emon.1 $(PREFIX)/share/man/man1/emon.1
+	install -d $(PREFIX)/share/emon/patterns/
+	install -m 644 patterns/*.pat $(PREFIX)/share/emon/patterns/
+	install -d $(PREFIX)/share/doc/emon/
+	install -m 644 .emon.conf.example $(PREFIX)/share/doc/emon/
 
 uninstall:
 	rm -f $(PREFIX)/bin/emon
 	rm -f $(PREFIX)/share/man/man1/emon.1
+	rm -rf $(PREFIX)/share/emon/
+	rm -rf $(PREFIX)/share/doc/emon/
 
 check:
 	@command -v pkg-config >/dev/null && pkg-config --exists libserialport \
